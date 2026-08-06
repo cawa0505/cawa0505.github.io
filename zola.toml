@@ -11,10 +11,10 @@ minify_html = true
 taxonomies = [{ name = "tags", feed = true }]
 
 [markdown.highlighting]
-theme = "catppuccin-mocha"
+theme = "dracula"
 
 [extra]
-accent_color = "green"
+accent_color = "purple"
 background_color = "dark"
 logo_text = "Jimmy Yen"
 author = "Jimmy Yen"
