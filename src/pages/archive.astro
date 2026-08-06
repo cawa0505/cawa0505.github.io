@@ -1,0 +1,15 @@
+---
+import { getCollection } from 'astro:content';
+import Layout from '../layouts/Layout.astro';
+const posts = (await getCollection('blog', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+const fmt = new Intl.DateTimeFormat('en', { year: 'numeric', month: 'long', day: 'numeric' });
+---
+<Layout title="Archive" active="archive">
+  <div class="post">
+    <h1 class="post-title">Archive</h1>
+    <ul>
+      {posts.map((post) => <li>{fmt.format(post.data.date)} — <a href={`/${post.id}/`}>{post.data.title}</a></li>)}
+    </ul>
+  </div>
+</Layout>

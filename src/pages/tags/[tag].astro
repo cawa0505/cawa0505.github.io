@@ -1,0 +1,22 @@
+---
+import { getCollection } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog', ({ data }) => !data.draft);
+  const tags = [...new Set(posts.flatMap((post) => post.data.tags))];
+  return tags.map((tag) => ({ params: { tag }, props: { tag, posts: posts.filter((post) => post.data.tags.includes(tag)) } }));
+}
+
+const { tag, posts } = Astro.props;
+const sorted = posts.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+const fmt = new Intl.DateTimeFormat('en', { year: 'numeric', month: 'long', day: 'numeric' });
+---
+<Layout title={`#${tag}`} active="tags">
+  <div class="post">
+    <h1 class="post-title">#{tag}</h1>
+    <ul>
+      {sorted.map((post) => <li>{fmt.format(post.data.date)} — <a href={`/${post.id}/`}>{post.data.title}</a></li>)}
+    </ul>
+  </div>
+</Layout>
