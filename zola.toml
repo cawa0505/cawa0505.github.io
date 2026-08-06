@@ -49,7 +49,7 @@ navigation = [
 ]
 
 home_title = "Jimmy Yen"
-home_content = "Systems & Infrastructure Engineer. Building ultra-fast Rust tools for the AI Agent era.<br>寫技術文章，開源高效能工具，歡迎贊助讓它們跑得更遠。"
+home_content = "Building sicker tools than yesterday."
 social_icons = [
     { url = "https://github.com/cawa0505", title = "GitHub", icon = "github" },
     { url = "$BASE_URL/atom.xml", title = "RSS", icon = "rss" },
