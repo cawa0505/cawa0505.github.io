@@ -23,9 +23,12 @@ jobs:
         with:
           submodules: recursive
       - name: Install Zola
-        uses: cawa0505/setup-zola@v1
-        with:
-          zola-version: '0.23.0'
+        run: |
+          ZOLA_VERSION="0.23.0"
+          ZOLA_ARCH="x86_64-unknown-linux-gnu"
+          curl -sSL "https://github.com/getzola/zola/releases/download/v${ZOLA_VERSION}/zola-v${ZOLA_VERSION}-${ZOLA_ARCH}.tar.gz" | tar xz
+          chmod +x zola
+          mv zola /usr/local/bin/
       - name: Build
         run: zola build
       - name: Upload artifact
