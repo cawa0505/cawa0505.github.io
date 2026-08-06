@@ -1,6 +1,6 @@
 +++
 title = "Rate Limits Are Runtime Reality: Building 429 Auto-Rotation into a Codebase Grapher"
-date = 2026-08-06T00:01:00Z
+date = 2026-08-04T00:01:00Z
 
 [taxonomies]
 tags = ["ai-infrastructure", "python", "reliability"]

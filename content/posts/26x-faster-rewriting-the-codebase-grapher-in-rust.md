@@ -1,6 +1,6 @@
 +++
 title = "26× Faster: Rewriting the Codebase Grapher in Rust"
-date = 2026-08-06T00:02:00Z
+date = 2026-08-05T00:02:00Z
 
 [taxonomies]
 tags = ["rust", "performance", "systems"]
