@@ -1,56 +1,27 @@
 base_url = "https://cawa0505.github.io"
-theme = "papermod"
+theme = "terminimal"
 title = "Jimmy Yen"
-description = "Systems & Infrastructure Engineer. Building ultra-fast Rust tools for the AI Agent era."
+description = "Building sicker tools than yesterday. Technical articles, open-source high-performance tools."
 compile_sass = true
-build_search_index = true
+build_search_index = false
 generate_feeds = true
 feed_filenames = ["atom.xml"]
 minify_html = true
 
 taxonomies = [{ name = "tags", feed = true }]
 
-[search]
-include_title = true
-include_description = false
-include_path = false
-include_content = true
-index_format = "elasticlunr_json"
-
 [markdown.highlighting]
 theme = "catppuccin-mocha"
 
 [extra]
-
-[extra.papermod]
+accent_color = "green"
+background_color = "dark"
+logo_text = "Jimmy Yen"
 author = "Jimmy Yen"
-title = "Jimmy Yen"
-default_theme = "auto"
-theme = "light"
-language_direction = "auto"
-keywords = ["rust", "systems", "ai", "infrastructure"]
-show_theme_toggle = true
-show_scroll_to_top = true
-show_code_copy_buttons = true
-show_reading_time = true
-show_word_count = false
-show_post_nav_links = true
-show_post_meta = true
-default_toc_open = false
-show_post_edit_button = true
-show_archive_year_count = true
-show_archive_month_count = true
-edit_post_url = "https://github.com/cawa0505/cawa0505.github.io/tree/master"
-date_format = "%Y-%m-%d"
-navigation = [
-    { url = "$BASE_URL/archive", title = "Archive" },
-    { url = "$BASE_URL/tags", title = "Tags" },
-    { url = "$BASE_URL/search", title = "Search" },
-]
-
-home_title = "Jimmy Yen"
-home_content = "Building sicker tools than yesterday."
-social_icons = [
-    { url = "https://github.com/cawa0505", title = "GitHub", icon = "github" },
-    { url = "$BASE_URL/atom.xml", title = "RSS", icon = "rss" },
+use_full_hack_font = true
+menu_items = [
+    { name = "blog", url = "$BASE_URL" },
+    { name = "tags", url = "$BASE_URL/tags" },
+    { name = "archive", url = "$BASE_URL/archive" },
+    { name = "github", url = "https://github.com/cawa0505", newtab = true },
 ]
