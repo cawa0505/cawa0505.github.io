@@ -3,6 +3,7 @@ const {
   title = 'Jimmy Yen',
   description = 'Building sicker tools than yesterday. Technical articles, open-source high-performance tools.',
   active = '',
+  extraStyles = [],
 } = Astro.props;
 const pageTitle = title === 'Jimmy Yen' ? title : `${title} :: Jimmy Yen`;
 ---
@@ -23,6 +24,7 @@ const pageTitle = title === 'Jimmy Yen' ? title : `${title} :: Jimmy Yen`;
     <link rel="stylesheet" href="/color/purple.css" />
     <link rel="stylesheet" href="/color/background_dark.css" />
     <link rel="stylesheet" href="/font-hack.css" />
+    {extraStyles.map((href) => <link rel="stylesheet" href={href} />)}
   </head>
   <body>
     <div class="container">
@@ -37,6 +39,7 @@ const pageTitle = title === 'Jimmy Yen' ? title : `${title} :: Jimmy Yen`;
             <li class={active === 'blog' ? 'active' : ''}><a href="/">blog</a></li>
             <li class={active === 'tags' ? 'active' : ''}><a href="/tags/">tags</a></li>
             <li class={active === 'archive' ? 'active' : ''}><a href="/archive/">archive</a></li>
+            <li class={active === 'donate' ? 'active' : ''}><a href="/donate/">donate</a></li>
             <li><a href="https://github.com/cawa0505" target="_blank" rel="noopener noreferrer">github</a></li>
           </ul>
         </nav>
