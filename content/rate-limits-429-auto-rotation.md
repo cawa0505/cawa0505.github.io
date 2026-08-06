@@ -26,6 +26,6 @@ The Python version's answer was a rotation layer, later carried into the Rust re
 
 The lesson that shaped the whole project: **rate limits are not an edge case, they are a runtime condition.** Any tool that hits LLM APIs and doesn't model rotation, failover and degradation as first-class concerns will fall over exactly when a user needs it.
 
-Phase 1 made graphify *reliable*. Phase 2, the Rust rewrite, made it *fast* — [read it here](/posts/26x-faster-rewriting-the-codebase-grapher-in-rust/).
+Phase 1 made graphify *reliable*. Phase 2, the Rust rewrite, made it *fast* — [read it here](/26x-faster-rewriting-the-codebase-grapher-in-rust/).
 
 → [graphify on GitHub](https://github.com/cawa0505/graphify-rust)

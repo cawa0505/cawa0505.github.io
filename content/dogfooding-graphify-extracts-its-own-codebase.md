@@ -15,7 +15,7 @@ Elapsed (wall clock): 0.25 s   (second run: 0.12 s)
 Maximum resident set size: ~17 MB
 ```
 
-225 nodes, 750 edges, one quarter of a second, less RAM than a browser tab. That's the whole promise of the Rust rewrite ([part 2](/posts/26x-faster-rewriting-the-codebase-grapher-in-rust/)) in one command line.
+225 nodes, 750 edges, one quarter of a second, less RAM than a browser tab. That's the whole promise of the Rust rewrite ([part 2](/26x-faster-rewriting-the-codebase-grapher-in-rust/)) in one command line.
 
 ## What the graph looks like
 

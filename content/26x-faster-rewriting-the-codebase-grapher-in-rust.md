@@ -6,7 +6,7 @@ date = 2026-08-05T00:02:00Z
 tags = ["rust", "performance", "systems"]
 +++
 
-The Python prototype of [graphify](https://github.com/cawa0505/graphify-rust) was reliable — 429 auto-rotation and provider failover meant it kept working under real rate limits ([part 1](/posts/rate-limits-429-auto-rotation/)). But it was slow, and it shipped a whole environment.
+The Python prototype of [graphify](https://github.com/cawa0505/graphify-rust) was reliable — 429 auto-rotation and provider failover meant it kept working under real rate limits ([part 1](/rate-limits-429-auto-rotation/)). But it was slow, and it shipped a whole environment.
 
 The numbers that decided the rewrite:
 
@@ -34,6 +34,6 @@ Because extraction takes milliseconds, the TUI can re-extract live and re-render
 
 For AI assistants, the output format matters as much as speed. The Rust version emits a compact binary `.toon` format instead of JSON — 74 KB vs 185 KB for the same graph (−60% tokens). Less tokens means cheaper, faster agent runs, not just faster local processing.
 
-Two phases in, the tool is reliable and fast. [Part 3: it extracts its own codebase](/posts/dogfooding-graphify-extracts-its-own-codebase/) — and the numbers are real.
+Two phases in, the tool is reliable and fast. [Part 3: it extracts its own codebase](/dogfooding-graphify-extracts-its-own-codebase/) — and the numbers are real.
 
 → [graphify on GitHub](https://github.com/cawa0505/graphify-rust)
