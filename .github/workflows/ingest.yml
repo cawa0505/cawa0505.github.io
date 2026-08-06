@@ -1,0 +1,30 @@
+name: Editorial ingest
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 1' # weekly, Mon 02:00 UTC
+
+permissions:
+  contents: write
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ingest
+        run: node scripts/ingest.cjs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INGEST_DAYS: ${{ vars.INGEST_DAYS || '7' }}
+      - name: Commit drafts
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "hub-ingest"
+            git config user.email "hub-ingest@users.noreply.github.com"
+            git add content/drafts
+            git commit -m "editorial intake: digest drafts"
+            git push
+          else
+            echo "no new drafts"
+          fi
