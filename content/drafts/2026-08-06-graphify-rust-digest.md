@@ -34,4 +34,7 @@ Weekly digest for [graphify-rust](https://api.github.com/repos/cawa0505/graphify
 - [`320106b`](https://github.com/cawa0505/graphify-rust/commit/320106b19d38a18c33a9aa0d18dce7b5ba4675af) spec: integrate Local Embeddings & Qdrant Vector Store Architecture into architecture/spec.md (2026-08-05)
 - [`2fbf7d4`](https://github.com/cawa0505/graphify-rust/commit/2fbf7d4b989a27a0f71b36f3adc4958c2866f963) docs: correct .toon format description to eliminate over-exaggerated wording (2026-08-05)
 
+**Structure (dogfooded):**
+- graphify extract (dogfooded on graphify-rust): 225 nodes / 750 edges in 105ms
+
 > Auto-drafted by hub ingest. Edit, then remove `draft = true` to publish.

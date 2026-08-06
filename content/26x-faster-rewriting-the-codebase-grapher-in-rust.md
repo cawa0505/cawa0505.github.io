@@ -32,7 +32,7 @@ Because extraction takes milliseconds, the TUI can re-extract live and re-render
 
 ## Tokens are the real currency
 
-For AI assistants, the output format matters as much as speed. The Rust version emits a compact binary `.toon` format instead of JSON — 74 KB vs 185 KB for the same graph (−60% tokens). Less tokens means cheaper, faster agent runs, not just faster local processing.
+For AI assistants, the output format matters as much as speed. The Rust version emits a compact columnar `.toon` (Token-Oriented Object Notation) text format instead of JSON — 74 KB vs 185 KB for the same graph (−60% tokens).
 
 Two phases in, the tool is reliable and fast. [Part 3: it extracts its own codebase](/dogfooding-graphify-extracts-its-own-codebase/) — and the numbers are real.
 

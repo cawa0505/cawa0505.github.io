@@ -6,6 +6,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 const DRAFTS = path.join(ROOT, 'content', 'drafts');
@@ -37,6 +38,47 @@ tags = [${tags.map((t) => `"${t}"`).join(', ')}]
 `;
 }
 
+// Enrichment: local-only, graceful skip in CI. DRACO_URL / GRAPHIFY_BIN gate them.
+// Local repo paths live in scripts/local.json (gitignored) — never in repos.json.
+
+function graphifyStats(repo) {
+  if (!repo.local_path) return null;
+  try {
+    const t0 = Date.now();
+    execSync(`graphify extract ${repo.local_path}`, { cwd: repo.local_path, stdio: 'pipe', timeout: 60000 });
+    const ms = Date.now() - t0;
+    const toon = fs.readFileSync(
+      path.join(repo.local_path, 'graphify-out', 'graph.toon'),
+      'utf8'
+    );
+    const nodes = (toon.match(/total_nodes:\s*(\d+)/) || [])[1];
+    const edges = (toon.match(/total_edges:\s*(\d+)/) || [])[1];
+    if (!nodes) return null;
+    return `- graphify extract (dogfooded on ${repo.name}): ${nodes} nodes / ${edges ?? '?'} edges in ${ms}ms`;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function dracoScrape(repo) {
+  if (!repo.sources?.length || !process.env.DRACO_URL) return [];
+  const out = [];
+  for (const url of repo.sources) {
+    try {
+      const res = await fetch(
+        `${process.env.DRACO_URL}/v1/scrape?url=${encodeURIComponent(url)}&formats=markdown`,
+        { signal: AbortSignal.timeout(15000) }
+      );
+      const j = await res.json();
+      const content = (j?.data?.content || j?.content || '').trim().replace(/\s+/g, ' ');
+      if (content) out.push(`- [${url}](${url}): ${content.slice(0, 220)}…`);
+    } catch (e) {
+      /* daemon unreachable — skip */
+    }
+  }
+  return out;
+}
+
 async function main() {
   fs.mkdirSync(DRAFTS, { recursive: true });
   const repos = JSON.parse(fs.readFileSync(path.join(__dirname, 'repos.json'), 'utf8'));
@@ -63,10 +105,24 @@ async function main() {
       const sha7 = c.sha.slice(0, 7);
       const date = c.commit.author.date.slice(0, 10);
       return `- [\`${sha7}\`](${c.html_url}) ${first} (${date})`;
-    });    const body = [
+    });
+
+    // merge local-only config (graphify local_path, draco sources)
+    const local = JSON.parse(
+      fs.existsSync(path.join(__dirname, 'local.json'))
+        ? fs.readFileSync(path.join(__dirname, 'local.json'), 'utf8')
+        : '{}'
+    );
+    const localCfg = local[repo.name] ? { ...local[repo.name], name: repo.name } : {};
+
+    const body = [
       `Weekly digest for [${repo.name}](${api}) — ${fresh.length} commit(s) in the last ${DAYS} days.`,
       ...lines,
     ];
+    const graph = graphifyStats(localCfg);
+    if (graph) body.push('', '**Structure (dogfooded):**', graph);
+    const scraped = await dracoScrape(localCfg);
+    if (scraped.length) body.push('', '**Sources (draco scrape):**', ...scraped);
     if (milestones.length) {
       body.push('', '**Roadmap:**');
       milestones.forEach((m) =>
