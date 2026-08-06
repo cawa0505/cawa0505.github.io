@@ -1,7 +1,4 @@
+public/
 .DS_Store
 scripts/local.json
 _site
-node_modules/
-dist/
-.astro/
-.astro-migration-tmp/
