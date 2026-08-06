@@ -16,8 +16,7 @@ jobs:
         with:
           submodules: recursive
       - name: Build and deploy
-        uses: shalzz/zola-deploy-action@v0.23.1
+        uses: shalzz/zola-deploy-action@v0.22.1
         env:
           PAGES_BRANCH: gh-pages
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ZOLA_VERSION: 0.22.1
