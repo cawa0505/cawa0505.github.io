@@ -1,6 +1,7 @@
 +++
 title = "OpenDocuments: A Self-Hosted RAG Platform That Fits in a Single Binary"
 date = 2026-08-06T00:00:00Z
+description = "OpenDocuments packages document parsing, hybrid retrieval, cited answers, an API, and a WebUI into one self-hosted Rust binary."
 
 [taxonomies]
 tags = ["rust", "ai-infrastructure", "rag"]

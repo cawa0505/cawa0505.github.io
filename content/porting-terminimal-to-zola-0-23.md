@@ -1,6 +1,7 @@
 +++
 title = "Porting Terminimal to Zola 0.23: When Tera Deleted Macros"
 date = 2026-08-06T00:05:00Z
+description = "Zola 0.23 moved to Tera 2 and broke macro-based themes. This article documents the Terminimal migration to globally registered components and the syntax changes that followed."
 
 [taxonomies]
 tags = ["zola", "tera", "static-sites"]

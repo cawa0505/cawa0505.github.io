@@ -1,6 +1,10 @@
 +++
 title = "26× Faster: Rewriting the Codebase Grapher in Rust"
 date = 2026-08-05T00:02:00Z
+description = "The Rust rewrite cuts graph extraction from 420 ms to 16 ms while replacing a multi-gigabyte Python environment with a native CLI and TUI."
+
+[extra]
+intro_image = "/graphify-tui-demo.gif"
 
 [taxonomies]
 tags = ["rust", "performance", "systems"]

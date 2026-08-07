@@ -1,6 +1,7 @@
 +++
 title = "opencode-speak-human-tw: A Plugin That Strips the AI Smell Out of Writing"
 date = 2026-08-03T00:00:00Z
+description = "An OpenCode plugin that rewrites Traditional Chinese copy to remove AI-flavored phrasing, mainland-China vocabulary, and inconsistent punctuation."
 
 [taxonomies]
 tags = ["javascript", "ai-infrastructure"]

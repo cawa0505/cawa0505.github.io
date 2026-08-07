@@ -1,6 +1,7 @@
 +++
 title = "Rate Limits Are Runtime Reality: Building 429 Auto-Rotation into a Codebase Grapher"
 date = 2026-08-04T00:01:00Z
+description = "How graphify treats API rate limits as a runtime condition through multi-key rotation, immediate retries, and local-provider failover."
 
 [taxonomies]
 tags = ["ai-infrastructure", "python", "reliability"]

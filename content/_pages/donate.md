@@ -21,7 +21,7 @@ No ads. No paywalls. Just tools that work and the commitment to keep improving t
 Support this work via Solana:
 
 <div class="donate-wallet">
-  <code id="wallet-address">Ct8DxsdKKJvNncrX4cLZ2RYzh6dz84R6ewxPzB7y54p7</code>
+  <code id="wallet-address">4pb8p2cTHdQb9WmU68n6AtQ3rrEHEzkQoESAXADzwKSF</code>
   <p class="donate-hint">Solana (SOL) network &middot; click to copy</p>
 </div>
 

@@ -1,6 +1,7 @@
 +++
 title = "From Commits to Drafts: An Automated Editorial Workflow"
 date = 2026-08-06T00:04:00Z
+description = "A practical editorial pipeline that turns repository commits and milestones into Markdown drafts, while keeping publication under human control."
 
 [taxonomies]
 tags = ["automation", "workflow", "ci"]

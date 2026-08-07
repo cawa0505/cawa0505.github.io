@@ -1,6 +1,7 @@
 +++
 title = "Dogfooding: Graphify Extracts Its Own Codebase"
 date = 2026-08-06T00:03:00Z
+description = "Graphify runs against its own Rust workspace to measure extraction speed, memory use, graph structure, and MCP query behavior."
 
 [taxonomies]
 tags = ["rust", "ai-infrastructure", "open-source"]
