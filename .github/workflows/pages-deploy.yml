@@ -26,6 +26,8 @@ jobs:
       - name: Build
         run: zola build
       - name: Deploy to gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd public
           git init -q
