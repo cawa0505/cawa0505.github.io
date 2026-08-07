@@ -55,3 +55,14 @@ CI 跑不到本機工具時自動略過 enrichment，不失敗。
 | env `INGEST_DAYS` | 回溯天數，預設 30 |
 | env `DRACO_URL` | draco daemon，設定後啟用 scrape enrichment |
 | env `GRAPHIFY_BIN` | graphify binary 路徑，缺省用 PATH 查詢 |
+
+## PoC 系列首篇的收斂流程
+
+對仍在快速迭代的 PoC，不把整份 README 藍圖當成已完成產品介紹。先讀 README、檢查最新 commit log，再用使用者指定的 demo 素材確認目前可展示的核心迴圈；文章只寫已實作且可驗證的能力，未完成項目留到後續系列文章。
+
+本次 Tapedeck 首篇採用以下流程：
+
+1. 從 `/mnt/data/btrfs-ssd/Projects/Jimmy/homelab-integration/repos/Tapedeck` 讀 README 與最新 commit log。
+2. 以「Rust PoC、`.roll` 腳本、TUI/VHS 錄影迴圈」為文章主軸，不深挖尚未完成的架構。
+3. 將真實 GIF 複製到 `static/`，確認檔案存在後才寫入 `extra.intro_image`。
+4. 寫入 `content/` 根目錄的 published article；完成後執行 `zola check` 驗證 front matter、連結與資產路徑。
