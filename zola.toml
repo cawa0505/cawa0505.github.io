@@ -20,7 +20,7 @@ logo_text = "Jimmy Yen"
 author = "Jimmy Yen"
 use_full_hack_font = true
 menu_items = [
-    { name = "home", url = "$BASE_URL" },
+    { name = "blog", url = "$BASE_URL" },
     { name = "tags", url = "$BASE_URL/tags" },
     { name = "archive", url = "$BASE_URL/archive" },
     { name = "donate", url = "$BASE_URL/donate" },
