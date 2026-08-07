@@ -2,3 +2,4 @@ public/
 .DS_Store
 scripts/local.json
 _site
+AGENTS.md

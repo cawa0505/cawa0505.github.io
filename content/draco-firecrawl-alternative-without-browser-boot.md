@@ -1,7 +1,7 @@
 +++
 title = "draco: A Firecrawl Alternative Without the Browser Boot"
 date = 2026-08-02T00:00:00Z
-description = "Draco is a native-Rust MCP scraper that returns clean Markdown and structured data without booting a browser for every request."
+description = "Draco offers a browserless Rust MCP scraper that delivers clean Markdown and structured data without launching a browser per request. It achieves this through native Rust implementation, handling DOM interactions and anti-blocking measures, providing a lightweight solution for content scraping."
 
 [taxonomies]
 tags = ["rust", "systems", "ai-infrastructure"]

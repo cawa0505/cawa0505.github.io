@@ -1,7 +1,7 @@
 +++
 title = "ax-mcp: A Remote Scraping MCP Server over Streamable HTTP"
 date = 2026-08-01T00:00:00Z
-description = "Ax-mcp exposes the ax scraper as a remote Streamable HTTP MCP endpoint designed to survive reverse proxies and unreliable network hops."
+description = "Ax-mcp provides a remote Streamable HTTP MCP endpoint for the ax scraper, ensuring reliability across reverse proxies and unstable networks. By converting tool calls into independent HTTP POSTs, it maintains connectivity through CDNs and VPNs, offering a robust alternative to stateful SSE connections."
 
 [taxonomies]
 tags = ["typescript", "ai-infrastructure"]

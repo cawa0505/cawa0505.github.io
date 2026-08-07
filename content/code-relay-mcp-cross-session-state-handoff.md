@@ -1,7 +1,7 @@
 +++
 title = "code-relay-mcp: Cross-Session State Handoff in a Rust Binary"
 date = 2026-07-31T00:00:00Z
-description = "A native-Rust MCP server for durable cross-session and cross-repository handoffs, with cached workspace discovery and atomic state writes."
+description = "A native-Rust MCP server for durable cross-session and cross-repository handoffs, featuring cached workspace discovery, atomic state writes, and a planned Qdrant long-term memory layer for semantic recall of past decisions."
 
 [taxonomies]
 tags = ["rust", "ai-infrastructure"]

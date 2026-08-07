@@ -71,7 +71,6 @@ Everything before step 1 is disposable. The draft is a starting point, never the
 | `GH_TOKEN` | GitHub API auth. CI uses `secrets.GITHUB_TOKEN`. |
 | `INGEST_DAYS` | Lookback window in days. Default 7. |
 | `DRACO_URL` | draco daemon URL. Enables scrape enrichment when set. |
-| `GRAPHIFY_BIN` | Path to the graphify binary. Falls back to `PATH`. |
 
 The whole thing is deliberately dumb: pull activity, write a draft, let a person decide. The automation removes the blank page, not the judgment.
 {% endraw %}

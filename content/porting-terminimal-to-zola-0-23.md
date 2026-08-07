@@ -8,7 +8,7 @@ tags = ["zola", "tera", "static-sites"]
 +++
 
 {% raw %}
-Zola 0.23 shipped on 2026-08-05 with a template engine that is not backwards compatible. It bundles Tera 2 — a full rewrite — and the upgrade broke every macro-based theme in the ecosystem, including [Terminimal](https://github.com/pawroman/zola-theme-terminimal), the one this site runs on. Upstream hadn't been touched for 0.20+, so I ported it myself. Here's what actually changed.
+Zola 0.23 shipped on 2026-08-05 with a template engine that is not backwards compatible. It bundles Tera 2 — a full rewrite — and the upgrade broke macro-based themes in the ecosystem, including [Terminimal](https://github.com/pawroman/zola-theme-terminimal), the one this site runs on. Upstream hadn't been touched for 0.20+, so I ported it myself. Here's what actually changed.
 
 ## What Zola is, briefly
 
@@ -93,7 +93,7 @@ String tests moved to named arguments. What used to be positional now errors wit
 
 ## One genuine Zola bug
 
-After the theme compiled, feeds still crashed. Zola 0.23's **built-in** `rss.xml` reads `section.title` without guarding whether `section` is defined — on a taxonomy or a feed with no backing section, that's an undefined-variable error. `atom.xml` guards it; `rss.xml` doesn't. Not a theme problem, a shipped bug.
+After the theme compiled, feeds still crashed. Zola 0.23's **built-in** `rss.xml` appears to read `section.title` without guarding whether `section` is defined — on a taxonomy or a feed with no backing section, that's an undefined-variable error. `atom.xml` guards it; `rss.xml` doesn't. Not a theme problem, a shipped bug.
 
 The fix is a theme-level override: drop a corrected `rss.xml` into the theme's `templates/`, add the missing guard, and Zola prefers it over its built-in. Feeds restored, no fork of Zola required.
 
