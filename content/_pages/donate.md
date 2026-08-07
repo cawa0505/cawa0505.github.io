@@ -4,7 +4,22 @@ date = 2026-08-07
 path = "/donate"
 +++
 
-Support my work by donating to my Solana wallet:
+## Why Donate?
+
+I build tools that make workflows faster, debugging clearer, and automation less painful. Every project on this site is a direct result of scratching my own itch — and sharing the solution.
+
+Donations fund:
+- **Time to build sicker tools than yesterday.** More experiments, deeper dives, cleaner abstractions.
+- **Infrastructure costs.** Hosting, domains, CI/CD minutes, cloud credits for testing distributed systems.
+- **Open-source contributions.** Upstream fixes, documentation, and maintaining the libraries I rely on.
+
+No ads. No paywalls. Just tools that work and the commitment to keep improving them.
+
+---
+
+## How to Donate
+
+Support this work via Solana:
 
 <div class="donate-wallet">
   <code id="wallet-address">Ct8DxsdKKJvNncrX4cLZ2RYzh6dz84R6ewxPzB7y54p7</code>
