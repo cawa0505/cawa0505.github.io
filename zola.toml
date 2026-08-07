@@ -23,5 +23,8 @@ menu_items = [
     { name = "blog", url = "$BASE_URL" },
     { name = "tags", url = "$BASE_URL/tags" },
     { name = "archive", url = "$BASE_URL/archive" },
+    { name = "donate", url = "$BASE_URL/donate" },
     { name = "github", url = "https://github.com/cawa0505", newtab = true },
 ]
+
+enable_post_view_navigation = true
