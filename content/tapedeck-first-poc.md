@@ -20,7 +20,7 @@ The input is a `.roll` file. It describes the actions that should happen during 
 
 Tapedeck currently has two recording paths:
 
-- **VHS** for terminal sessions, translating the script into a `vhs .tape` run.
+- **[VHS](https://github.com/charmbracelet/vhs)** for terminal sessions, translating the script into a `vhs .tape` run.
 - **Native** for real desktop windows, with Wayland/X11 input and capture work planned around the native engine.
 
 `Set Engine Auto` lets the project choose the path from the script's intent. The CLI also supports `--dry-run`, so a recording can be checked for parsing and engine selection before it touches the screen.
