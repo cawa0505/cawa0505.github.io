@@ -9,7 +9,7 @@ tags = ["rust", "architecture", "plugin-system", "graphify"]
 
 ## Overview
 
-Graphify's plugin architecture follows a strict two-layer separation: **Layer 1** (embedded v1 traits) is implemented and production-ready, while **Layer 2** (external SDK) remains a roadmap for third-party ecosystem development. This design ensures zero coupling between core and external plugins while maintaining a clear evolution path.
+Graphify's plugin architecture follows a strict two-layer separation: **Layer 1** (embedded v1 traits) is implemented, while **Layer 2** (external SDK) remains a roadmap for third-party ecosystem development. This design keeps the core contract separate from the external plugin protocol while maintaining a clear evolution path.
 
 ## Implemented: Embedded v1 Plugin Layer
 
@@ -83,7 +83,7 @@ The plugin exists but the full semantic review flow (Git diff → symbols → to
 #### 1. MCP-Native Plugin Gateway
 - **graphify-mcp unified gateway** — Single MCP server for external plugins
 - **Stdio + JSON-RPC transport** — Language-agnostic plugin interface
-- **Tool registration** — External plugins expose tools via `getTools`
+- **Tool registration** — External plugins expose tools through MCP's `tools/list`
 - **Mode 1 (Unified Gateway)** — graphify-mcp acts as MCP client, spawns plugins, aggregates tools
 
 #### 2. Polyglot SDKs
@@ -100,12 +100,12 @@ The plugin exists but the full semantic review flow (Git diff → symbols → to
 
 ### Technical Roadmap
 
-#### Phase 1: Core Interface (Week 1-2)
+#### Phase 1: Core Interface
 - Finalize external protocol specification
 - Implement MCPPluginAdapter bridge (if unification desired)
 - Define JSON-RPC method contracts independent of v1 trait
 
-#### Phase 2: Review & Handoff (Week 3-4)
+#### Phase 2: Review & Handoff
 - Complete graphify-plugin-review pipeline
 - Implement graphify-plugin-handoff with .toon sub-graph export
 - Add graphify-plugin-opendoc vector integration
@@ -119,7 +119,7 @@ The plugin exists but the full semantic review flow (Git diff → symbols → to
 
 This cawa0505.github.io site can leverage Graphify topology to supply bounded code context for articles. The editorial workflow would:
 
-1. **Extract workspace topology** — Use Graphify's 16ms AST extraction to analyze repository structure
+1. **Extract workspace topology** — Use Graphify to analyze repository structure
 2. **Generate bounded context** — Create TOON subgraphs representing relevant code sections
 3. **Supply to AI reviewers** — Feed topology to semantic review pipeline for technical accuracy
 4. **Maintain manual verification** — Facts remain manually verified, with performance/model benchmarks separate from executable milestones
@@ -133,10 +133,10 @@ When publishing architecture articles, the workflow could:
 
 ## Thesis: Structural Facts vs Semantic Interpretation
 
-Graphify computes **structural facts** that should not be guessed:
-- 100% precise symbolic structure trees
-- Call graph and impact radius analysis (Ground Truth)
-- Deterministic workspace key generation
+Graphify computes explicit **structural relationships** that should not be left to guesswork:
+- Symbol and file relationships
+- Call graph and impact-radius traversals
+- Deterministic workspace-key derivation from the workspace root
 
 LLMs later interpret **bounded semantic context** derived from these facts. Performance/model benchmarks remain separate from executable milestones, ensuring factual accuracy precedes semantic interpretation.
 
