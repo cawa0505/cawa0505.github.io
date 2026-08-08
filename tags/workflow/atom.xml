@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - workflow</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/workflow/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-06T00:04:00+00:00</updated>
+    <id>https://cawa0505.github.io/tags/workflow/atom.xml</id>
+    <entry xml:lang="en">
+        <title>From Commits to Drafts: An Automated Editorial Workflow</title>
+        <published>2026-08-06T00:04:00+00:00</published>
+        <updated>2026-08-06T00:04:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/editorial-workflow-commits-to-drafts/"/>
+        <id>https://cawa0505.github.io/editorial-workflow-commits-to-drafts/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/editorial-workflow-commits-to-drafts/">&lt;p&gt;Writing a dev blog dies the same way every time: the code ships, the intent to write it up survives about a week, then the context is gone. So this site does not start from a blank page. It starts from what already happened in the repos — commits and milestones — and turns that into a draft an editor can shape.&lt;/p&gt;
+&lt;p&gt;The rule that makes it bearable: &lt;strong&gt;the machine writes drafts, a human publishes.&lt;/strong&gt; No draft ever goes live on its own.&lt;/p&gt;
+&lt;h2 id=&quot;the-pipeline&quot;&gt;The pipeline&lt;/h2&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;GitHub API (commits + milestones)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;scripts/ingest.cjs ── enrichment (local only) ──┐&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        │                                        ├─ graphify extract: measured on the repo&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        ▼                                        │   (node/edge counts + timing, into the post)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;content/drafts/YYYY-MM-DD-&amp;lt;repo&amp;gt;-digest.md       └─ draco /v1/scrape: fetch source URLs,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;   (draft = true, not published)                     summarize into the post&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;human editing: edit → move out of drafts → drop the draft flag → push&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;GitHub Pages&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;code&gt;scripts/ingest.cjs&lt;/code&gt; pulls recent activity from the GitHub API and writes one Markdown draft per repo. Everything downstream is either editing or deploying.&lt;/p&gt;
+&lt;h2 id=&quot;when-it-runs&quot;&gt;When it runs&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Schedule:&lt;/strong&gt; every Monday 02:00 UTC.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Manual:&lt;/strong&gt; &lt;code&gt;gh workflow run ingest.yml --repo cawa0505/cawa0505.github.io&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Zero noise:&lt;/strong&gt; a repo with no new commits or milestones produces no draft. Quiet weeks stay quiet.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;what-a-draft-contains&quot;&gt;What a draft contains&lt;/h2&gt;
+&lt;p&gt;At most one digest per repo per run, dropped into &lt;code&gt;content/drafts/&lt;/code&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;A summary of the last &lt;code&gt;INGEST_DAYS&lt;/code&gt; (default 7) of commits, with merge/chore/bump noise filtered out.&lt;/li&gt;
+&lt;li&gt;Open milestones, rendered as a roadmap block.&lt;/li&gt;
+&lt;li&gt;When run locally, two enrichment passes the CI runner can&#39;t do:
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;graphify&lt;/strong&gt; — runs &lt;code&gt;graphify extract&lt;/code&gt; against the local checkout and folds the real node/edge counts and timing into the draft. Local paths live in &lt;code&gt;scripts/local.json&lt;/code&gt;, which is gitignored so nothing about the machine leaks.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;draco&lt;/strong&gt; — when &lt;code&gt;DRACO_URL&lt;/code&gt; is set, scrapes the URLs listed under a repo&#39;s &lt;code&gt;sources&lt;/code&gt; and summarizes them inline.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;If those tools aren&#39;t reachable — which is always the case on a CI runner — the enrichment is skipped, not failed. The draft still gets written.&lt;/p&gt;
+&lt;h2 id=&quot;publishing-the-editorial-gate&quot;&gt;Publishing: the editorial gate&lt;/h2&gt;
+&lt;p&gt;This is the only manual step, and it&#39;s the point:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Edit the draft — fix the title, pick the commits worth keeping, add the context the machine can&#39;t know.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;git mv content/drafts/X.md content/X.md&lt;/code&gt; — articles live at the root of &lt;code&gt;content/&lt;/code&gt;, the Terminimal convention.&lt;/li&gt;
+&lt;li&gt;Remove &lt;code&gt;draft = true&lt;/code&gt; from the front matter and set a real date.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;git push&lt;/code&gt; — the site builds and deploys.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Everything before step 1 is disposable. The draft is a starting point, never the product.&lt;/p&gt;
+&lt;h2 id=&quot;configuration&quot;&gt;Configuration&lt;/h2&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;File / env&lt;/th&gt;&lt;th&gt;Purpose&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;scripts/repos.json&lt;/code&gt;&lt;/td&gt;&lt;td&gt;Watched repos, each with a &lt;code&gt;lang&lt;/code&gt; tag and optional &lt;code&gt;sources&lt;/code&gt; (draco URL list).&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;scripts/local.json&lt;/code&gt;&lt;/td&gt;&lt;td&gt;Local checkout paths (&lt;code&gt;local_path&lt;/code&gt;). Gitignored.&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;GH_TOKEN&lt;/code&gt;&lt;/td&gt;&lt;td&gt;GitHub API auth. CI uses &lt;code&gt;secrets.GITHUB_TOKEN&lt;/code&gt;.&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;INGEST_DAYS&lt;/code&gt;&lt;/td&gt;&lt;td&gt;Lookback window in days. Default 7.&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;DRACO_URL&lt;/code&gt;&lt;/td&gt;&lt;td&gt;draco daemon URL. Enables scrape enrichment when set.&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;p&gt;The whole thing is deliberately dumb: pull activity, write a draft, let a person decide. The automation removes the blank page, not the judgment.&lt;/p&gt;
+</content>
+        
+    </entry>
+</feed>

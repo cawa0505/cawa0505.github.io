@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - typescript</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/typescript/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-01T00:00:00+00:00</updated>
+    <id>https://cawa0505.github.io/tags/typescript/atom.xml</id>
+    <entry xml:lang="en">
+        <title>ax-mcp: A Remote Scraping MCP Server over Streamable HTTP</title>
+        <published>2026-08-01T00:00:00+00:00</published>
+        <updated>2026-08-01T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/ax-mcp-remote-scraping-over-streamable-http/"/>
+        <id>https://cawa0505.github.io/ax-mcp-remote-scraping-over-streamable-http/</id>
+        
+        <summary type="html">&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/ax-mcp&quot;&gt;ax-mcp&lt;/a&gt; is a small Node.js MCP server that wraps &lt;a rel=&quot;external&quot; href=&quot;https://github.com/yusukebe/ax&quot;&gt;&lt;code&gt;ax&lt;/code&gt;&lt;/a&gt; — &quot;curl for the AI era&quot; — and exposes it as a &lt;strong&gt;remote&lt;/strong&gt; MCP endpoint. The point is transport: instead of SSE long-connections that die across reverse proxies, the server is bridged through &lt;code&gt;supergateway&lt;/code&gt; to Streamable HTTP (&lt;code&gt;POST /mcp&lt;/code&gt;), the native shape of OpenCode&#39;s &lt;code&gt;type: &quot;remote&quot;&lt;/code&gt;.&lt;/p&gt;</summary>
+        
+    </entry>
+</feed>

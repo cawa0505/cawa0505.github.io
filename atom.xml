@@ -1,0 +1,410 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-08T00:00:00+00:00</updated>
+    <id>https://cawa0505.github.io/atom.xml</id>
+    <entry xml:lang="en">
+        <title>Tapedeck: A Scriptable Recording Deck for Terminal Demos</title>
+        <published>2026-08-08T00:00:00+00:00</published>
+        <updated>2026-08-08T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/tapedeck-first-poc/"/>
+        <id>https://cawa0505.github.io/tapedeck-first-poc/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/tapedeck-first-poc/">&lt;p&gt;Most terminal demos are recorded the hard way: start a screen recorder, type the same commands again, and hope the timing survives the next take. &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck&lt;/a&gt; is a small Rust proof of concept aimed at making that process scriptable.&lt;/p&gt;
+&lt;p&gt;The input is a &lt;code&gt;.roll&lt;/code&gt; file. It describes the actions that should happen during a recording — typing, key presses, sleeps, output format, and frame rate — instead of encoding the demo as a one-off manual session.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/tapedeck-tui-demo.gif&quot; alt=&quot;Tapedeck TUI demo&quot; /&gt;&lt;/p&gt;
+&lt;h2 id=&quot;the-first-useful-split&quot;&gt;The first useful split&lt;/h2&gt;
+&lt;p&gt;Tapedeck currently has two recording paths:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/charmbracelet/vhs&quot;&gt;VHS&lt;/a&gt;&lt;/strong&gt; for terminal sessions, translating the script into a &lt;code&gt;vhs .tape&lt;/code&gt; run.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Native&lt;/strong&gt; for real desktop windows, with Wayland/X11 input and capture work planned around the native engine.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;code&gt;Set Engine Auto&lt;/code&gt; lets the project choose the path from the script&#39;s intent. The CLI also supports &lt;code&gt;--dry-run&lt;/code&gt;, so a recording can be checked for parsing and engine selection before it touches the screen.&lt;/p&gt;
+&lt;p&gt;The implementation is deliberately becoming boring in the right places: shared &lt;code&gt;.roll&lt;/code&gt; parsing, an engine trait, XDG-aware configuration, and explicit output flags such as &lt;code&gt;--fps&lt;/code&gt;, &lt;code&gt;--gif&lt;/code&gt;, and &lt;code&gt;--webp&lt;/code&gt;. The latest commits add &lt;code&gt;tapedeck doctor&lt;/code&gt;, which checks dependencies and probes available hardware encoders before saving the result to configuration.&lt;/p&gt;
+&lt;h2 id=&quot;why-this-is-a-poc&quot;&gt;Why this is a PoC&lt;/h2&gt;
+&lt;p&gt;The current milestone is not a polished capture suite. It is a test of the core loop:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;.roll script → parse → select engine → record → export media&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That loop is already enough to make a terminal demo repeatable. The next articles can go deeper into native window capture, hardware encoding, and asset management. For now, Tapedeck is the smallest interesting question: can a developer describe a demo once and regenerate it without manually replaying every keystroke?&lt;/p&gt;
+&lt;p&gt;→ &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck on GitHub&lt;/a&gt;&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>When a Markdown Editor Remembers LOGO</title>
+        <published>2026-08-08T00:00:00+00:00</published>
+        <updated>2026-08-08T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/zago-logo-in-a-markdown-editor/"/>
+        <id>https://cawa0505.github.io/zago-logo-in-a-markdown-editor/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/zago-logo-in-a-markdown-editor/">&lt;p&gt;There is a particular kind of software nostalgia that still earns its place: LOGO&#39;s turtle, reduced to movement, repetition, and a trail left behind.&lt;/p&gt;
+&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble/zago&quot;&gt;zago&lt;/a&gt; brings that idea into a terminal Markdown editor. It is written by &lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble&quot;&gt;zonble&lt;/a&gt;, and the interesting part is not a separate graphics window. The text buffer itself becomes the canvas.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/zago-logo-turtle.gif&quot; alt=&quot;A zago LOGO turtle drawing recorded with Tapedeck&quot; /&gt;&lt;/p&gt;
+&lt;h2 id=&quot;the-pen-is-a-text-buffer-mode&quot;&gt;The pen is a text-buffer mode&lt;/h2&gt;
+&lt;p&gt;zago&#39;s Editor LOGO uses the familiar &lt;code&gt;PD&lt;/code&gt; and &lt;code&gt;PU&lt;/code&gt; commands:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;PD&lt;/code&gt; — pen down; movement leaves line-drawing characters in the buffer.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;PU&lt;/code&gt; — pen up; movement becomes safe navigation again.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;FD&lt;/code&gt; — move forward in the current direction.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;RT&lt;/code&gt; and &lt;code&gt;LT&lt;/code&gt; — turn right or left by 90 degrees.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;When the pen is down, zago does more than print independent characters. It merges horizontal and vertical strokes into Unicode junctions such as &lt;code&gt;┌&lt;/code&gt;, &lt;code&gt;┐&lt;/code&gt;, &lt;code&gt;└&lt;/code&gt;, &lt;code&gt;┘&lt;/code&gt;, and &lt;code&gt;┼&lt;/code&gt;. That makes a sequence of cursor movements behave like a small diagram editor while the result remains plain text.&lt;/p&gt;
+&lt;p&gt;The default is deliberately safe: LOGO execution starts with the pen up. A macro has to opt into drawing explicitly, and a finished drawing should lift the pen again.&lt;/p&gt;
+&lt;h2 id=&quot;a-small-polygon-instead-of-box&quot;&gt;A small polygon instead of &lt;code&gt;BOX&lt;/code&gt;&lt;/h2&gt;
+&lt;p&gt;The official pen-mode guide already demonstrates a square with &lt;code&gt;BOX&lt;/code&gt;-like movement. For this recording I used a stepped octagon so the demo shows turtle movement without repeating that example:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;logo&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;PD FD 16 RT 90 FD 8 RT 90 FD 6 RT 90 FD 3&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;RT 90 FD 4 RT 90 FD 3 RT 90 FD 6 RT 90 FD 8 PU&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;zago&#39;s turns are 90-degree turns, so this is not a graphical regular octagon. It is an orthogonal text polygon: a sequence of straight moves and right-angle turns that closes back on itself. The shape is less important than the mechanism — the turtle moves, the buffer records the path, and junction characters are fused as the path changes direction.&lt;/p&gt;
+&lt;p&gt;The same command can be tested without opening the editor:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;zago&lt;/span&gt;&lt;span style=&quot;color: #BD93F9;&quot;&gt; -e&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt; &amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt;PD FD 16 RT 90 FD 8 RT 90 FD 6 RT 90 FD 3 RT 90 FD 4 RT 90 FD 3 RT 90 FD 6 RT 90 FD 8 PU&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That headless mode is useful for checking a drawing before putting it into an interactive recording. It also makes the output easy to inspect in a shell or pipeline.&lt;/p&gt;
+&lt;h2 id=&quot;recording-the-interaction-instead-of-recording-it-again&quot;&gt;Recording the interaction instead of recording it again&lt;/h2&gt;
+&lt;p&gt;I used &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck&lt;/a&gt; to turn the terminal session into a repeatable &lt;code&gt;.roll&lt;/code&gt; script. The script is named &lt;code&gt;examples/tui_zago_logo_turtle.roll&lt;/code&gt; in the Tapedeck repository and describes the boring parts explicitly:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Set Engine Auto&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Set Output &amp;quot;zago_logo_turtle.gif&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Set FPS 15&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;...&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Escape&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Type &amp;quot;PD FD 16 RT 90 FD 8 RT 90 FD 6 RT 90 FD 3 RT 90 FD 4 RT 90 FD 3 RT 90 FD 6 RT 90 FD 8 PU&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Enter&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;code&gt;tapedeck run --dry-run examples/tui_zago_logo_turtle.roll&lt;/code&gt; passes the parser and selects the VHS engine. Running the script produced a &lt;code&gt;1200×600&lt;/code&gt; GIF with 251 frames in the local recording environment. The output is a terminal capture, not a claim that zago opens a graphical turtle canvas.&lt;/p&gt;
+&lt;p&gt;That distinction matters. zago owns the editor and the LOGO language; Tapedeck only makes the interaction reproducible. If the recording needs a new shape later, the script is the source of the demo instead of a sequence of manually timed keystrokes.&lt;/p&gt;
+&lt;h2 id=&quot;a-small-downstream-contribution&quot;&gt;A small downstream contribution&lt;/h2&gt;
+&lt;p&gt;I also maintain &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/aur-zago&quot;&gt;aur-zago&lt;/a&gt;, an Arch Linux packaging project for zago. The intended AUR package name is &lt;code&gt;zago-bin&lt;/code&gt;; it is not published in the AUR yet because new account registration is currently unavailable to me. This is downstream work, not zago development. I packaged it because I am a fan of zonble&#39;s project and wanted a convenient Arch installation path; the zago design, implementation, and authorship remain zonble&#39;s.&lt;/p&gt;
+&lt;p&gt;That boundary is worth stating plainly when writing about tools one did not create. Packaging, recording, and documenting a project can be useful without turning into an ownership claim.&lt;/p&gt;
+&lt;h2 id=&quot;sources&quot;&gt;Sources&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble/zago/blob/main/README.md&quot;&gt;zago README&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble/zago/blob/main/docs/logo.md&quot;&gt;Editor LOGO documentation&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble/zago/blob/main/docs/logo_pen_mode.md&quot;&gt;Pen mode and turtle drawing&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/aur-zago&quot;&gt;aur-zago&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Porting Terminimal to Zola 0.23: When Tera Deleted Macros</title>
+        <published>2026-08-06T00:05:00+00:00</published>
+        <updated>2026-08-06T00:05:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/porting-terminimal-to-zola-0-23/"/>
+        <id>https://cawa0505.github.io/porting-terminimal-to-zola-0-23/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/porting-terminimal-to-zola-0-23/">&lt;p&gt;Zola 0.23 shipped on 2026-08-05 with a template engine that is not backwards compatible. It bundles Tera 2 — a full rewrite — and the upgrade broke macro-based themes in the ecosystem, including &lt;a rel=&quot;external&quot; href=&quot;https://github.com/pawroman/zola-theme-terminimal&quot;&gt;Terminimal&lt;/a&gt;, the one this site runs on. Upstream hadn&#39;t been touched for 0.20+, so I ported it myself. Here&#39;s what actually changed.&lt;/p&gt;
+&lt;h2 id=&quot;what-zola-is-briefly&quot;&gt;What Zola is, briefly&lt;/h2&gt;
+&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://www.getzola.org/&quot;&gt;Zola&lt;/a&gt; is a static site generator in a single Rust binary. No Node, no Ruby, no plugin ecosystem to keep alive — you write Markdown, it builds HTML. It uses &lt;a rel=&quot;external&quot; href=&quot;https://github.com/Keats/tera&quot;&gt;Tera&lt;/a&gt; for templating, a Jinja2-like engine. That engine is exactly what changed under it.&lt;/p&gt;
+&lt;h2 id=&quot;tera-2-deleted-macros&quot;&gt;Tera 2 deleted macros&lt;/h2&gt;
+&lt;p&gt;The migration guide is blunt about it:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Macros? Yep completely gone. Nada. They are replaced with components.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Terminimal is built out of macros — &lt;code&gt;date&lt;/code&gt;, &lt;code&gt;head&lt;/code&gt;, &lt;code&gt;menu&lt;/code&gt;, &lt;code&gt;post&lt;/code&gt;, &lt;code&gt;title&lt;/code&gt; — 11 of them across 5 files, called from every template. In Tera 1 you imported and called them:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% import &amp;quot;macros/post.html&amp;quot; as post_macros %}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{{ post_macros::header(page=page) }}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In Tera 2 that entire model is gone. No &lt;code&gt;{% import %}&lt;/code&gt;, no &lt;code&gt;::&lt;/code&gt;, no &lt;code&gt;{% macro %}&lt;/code&gt;. Components replace them, and they are &lt;strong&gt;globally registered&lt;/strong&gt; — any template containing a &lt;code&gt;{% component %}&lt;/code&gt; block is available everywhere, no import step.&lt;/p&gt;
+&lt;h3 id=&quot;define&quot;&gt;Define&lt;/h3&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% component header(page) %}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  &amp;lt;h1&amp;gt;{{ page.title }}&amp;lt;/h1&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% endcomponent header %}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;h3 id=&quot;call-jsx-not-function-calls&quot;&gt;Call — JSX, not function calls&lt;/h3&gt;
+&lt;p&gt;This is the part that trips you up. Invocation is a JSX-like tag, not a function call:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{# Tera 1 #}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{{ post_macros::header(page=page) }}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{# Tera 2 #}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{{&amp;lt;header page={page}/&amp;gt;}}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;String literals stay bare; every non-string value goes in braces: &lt;code&gt;page={page}&lt;/code&gt;, &lt;code&gt;summary={true}&lt;/code&gt;, &lt;code&gt;short={true}&lt;/code&gt;. To capture output into a variable you self-close inside &lt;code&gt;set&lt;/code&gt;:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% set title = &amp;lt;title page_title={page.title} main_title={config.title}/&amp;gt; %}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;h3 id=&quot;the-gotcha-no-ambient-context&quot;&gt;The gotcha: no ambient context&lt;/h3&gt;
+&lt;p&gt;Macros in Tera 1 could see the global template context. &lt;strong&gt;Components can&#39;t.&lt;/strong&gt; A component only receives what you pass it. Terminimal&#39;s &lt;code&gt;title&lt;/code&gt; macro read &lt;code&gt;config.extra.page_titles&lt;/code&gt; directly; the &lt;code&gt;menu&lt;/code&gt; macro read &lt;code&gt;current_url&lt;/code&gt;. Both broke silently until every call site was updated to pass those in explicitly:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{{&amp;lt;menu config={config} current_path={current_path} current_url={current_url}/&amp;gt;}}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That&#39;s the real migration cost — not the mechanical &lt;code&gt;::&lt;/code&gt; → &lt;code&gt;.&lt;/code&gt; rename, but hunting down every implicit context read and threading it through as an argument.&lt;/p&gt;
+&lt;h2 id=&quot;shortcodes-are-gone-too&quot;&gt;Shortcodes are gone too&lt;/h2&gt;
+&lt;p&gt;Same release, second surprise, straight from the changelog:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;As mentioned, shortcodes have been completely removed. [...] just use Tera, the same components you can use elsewhere in your site.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Terminimal&#39;s &lt;code&gt;figure&lt;/code&gt; and &lt;code&gt;image&lt;/code&gt; shortcodes became components. In content, the call syntax changes from the old &lt;code&gt;{{ figure(src=&quot;...&quot;) }}&lt;/code&gt; to the component form:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;markdown&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{{&amp;lt; figure src=&amp;quot;/img/x.png&amp;quot; /&amp;gt;}}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;No more separate &lt;code&gt;templates/shortcodes/&lt;/code&gt; mental model — it&#39;s components all the way down.&lt;/p&gt;
+&lt;h2 id=&quot;the-tests-changed-shape&quot;&gt;The tests changed shape&lt;/h2&gt;
+&lt;p&gt;String tests moved to named arguments. What used to be positional now errors without a keyword:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{# breaks in Tera 2 #}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% if url is starting_with(&amp;quot;http&amp;quot;) %}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{# works #}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% if url is starting_with(pat=&amp;quot;http&amp;quot;) %}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&quot;one-genuine-zola-bug&quot;&gt;One genuine Zola bug&lt;/h2&gt;
+&lt;p&gt;After the theme compiled, feeds still crashed. Zola 0.23&#39;s &lt;strong&gt;built-in&lt;/strong&gt; &lt;code&gt;rss.xml&lt;/code&gt; appears to read &lt;code&gt;section.title&lt;/code&gt; without guarding whether &lt;code&gt;section&lt;/code&gt; is defined — on a taxonomy or a feed with no backing section, that&#39;s an undefined-variable error. &lt;code&gt;atom.xml&lt;/code&gt; guards it; &lt;code&gt;rss.xml&lt;/code&gt; doesn&#39;t. Not a theme problem, a shipped bug.&lt;/p&gt;
+&lt;p&gt;The fix is a theme-level override: drop a corrected &lt;code&gt;rss.xml&lt;/code&gt; into the theme&#39;s &lt;code&gt;templates/&lt;/code&gt;, add the missing guard, and Zola prefers it over its built-in. Feeds restored, no fork of Zola required.&lt;/p&gt;
+&lt;h2 id=&quot;the-scoreboard&quot;&gt;The scoreboard&lt;/h2&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Change&lt;/th&gt;&lt;th&gt;Count&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;{% macro %}&lt;/code&gt; → &lt;code&gt;{% component %}&lt;/code&gt;&lt;/td&gt;&lt;td&gt;11, across 5 files&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Call sites rewritten to &lt;code&gt;{{&amp;lt;fn .../&amp;gt;}}&lt;/code&gt;&lt;/td&gt;&lt;td&gt;6 templates&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Shortcodes → components&lt;/td&gt;&lt;td&gt;&lt;code&gt;figure&lt;/code&gt;, &lt;code&gt;image&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Test syntax fixed&lt;/td&gt;&lt;td&gt;&lt;code&gt;starting_with(pat=...)&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Zola built-in bugs worked around&lt;/td&gt;&lt;td&gt;1 (&lt;code&gt;rss.xml&lt;/code&gt; guard)&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;p&gt;Build time after the port: &lt;strong&gt;~460 ms&lt;/strong&gt; for the full site. The single-binary promise still holds — the engine underneath it just moved.&lt;/p&gt;
+&lt;p&gt;Migration guides referenced: &lt;a rel=&quot;external&quot; href=&quot;https://github.com/Keats/tera/blob/master/MIGRATION.md&quot;&gt;Tera v1→v2&lt;/a&gt; (canonical — Tera&#39;s own docs site is still offline), &lt;a rel=&quot;external&quot; href=&quot;https://github.com/getzola/zola/blob/master/CHANGELOG.md&quot;&gt;Zola CHANGELOG&lt;/a&gt;.&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>From Commits to Drafts: An Automated Editorial Workflow</title>
+        <published>2026-08-06T00:04:00+00:00</published>
+        <updated>2026-08-06T00:04:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/editorial-workflow-commits-to-drafts/"/>
+        <id>https://cawa0505.github.io/editorial-workflow-commits-to-drafts/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/editorial-workflow-commits-to-drafts/">&lt;p&gt;Writing a dev blog dies the same way every time: the code ships, the intent to write it up survives about a week, then the context is gone. So this site does not start from a blank page. It starts from what already happened in the repos — commits and milestones — and turns that into a draft an editor can shape.&lt;/p&gt;
+&lt;p&gt;The rule that makes it bearable: &lt;strong&gt;the machine writes drafts, a human publishes.&lt;/strong&gt; No draft ever goes live on its own.&lt;/p&gt;
+&lt;h2 id=&quot;the-pipeline&quot;&gt;The pipeline&lt;/h2&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;GitHub API (commits + milestones)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;scripts/ingest.cjs ── enrichment (local only) ──┐&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        │                                        ├─ graphify extract: measured on the repo&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        ▼                                        │   (node/edge counts + timing, into the post)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;content/drafts/YYYY-MM-DD-&amp;lt;repo&amp;gt;-digest.md       └─ draco /v1/scrape: fetch source URLs,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;   (draft = true, not published)                     summarize into the post&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;human editing: edit → move out of drafts → drop the draft flag → push&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;GitHub Pages&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;code&gt;scripts/ingest.cjs&lt;/code&gt; pulls recent activity from the GitHub API and writes one Markdown draft per repo. Everything downstream is either editing or deploying.&lt;/p&gt;
+&lt;h2 id=&quot;when-it-runs&quot;&gt;When it runs&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Schedule:&lt;/strong&gt; every Monday 02:00 UTC.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Manual:&lt;/strong&gt; &lt;code&gt;gh workflow run ingest.yml --repo cawa0505/cawa0505.github.io&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Zero noise:&lt;/strong&gt; a repo with no new commits or milestones produces no draft. Quiet weeks stay quiet.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;what-a-draft-contains&quot;&gt;What a draft contains&lt;/h2&gt;
+&lt;p&gt;At most one digest per repo per run, dropped into &lt;code&gt;content/drafts/&lt;/code&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;A summary of the last &lt;code&gt;INGEST_DAYS&lt;/code&gt; (default 7) of commits, with merge/chore/bump noise filtered out.&lt;/li&gt;
+&lt;li&gt;Open milestones, rendered as a roadmap block.&lt;/li&gt;
+&lt;li&gt;When run locally, two enrichment passes the CI runner can&#39;t do:
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;graphify&lt;/strong&gt; — runs &lt;code&gt;graphify extract&lt;/code&gt; against the local checkout and folds the real node/edge counts and timing into the draft. Local paths live in &lt;code&gt;scripts/local.json&lt;/code&gt;, which is gitignored so nothing about the machine leaks.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;draco&lt;/strong&gt; — when &lt;code&gt;DRACO_URL&lt;/code&gt; is set, scrapes the URLs listed under a repo&#39;s &lt;code&gt;sources&lt;/code&gt; and summarizes them inline.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;If those tools aren&#39;t reachable — which is always the case on a CI runner — the enrichment is skipped, not failed. The draft still gets written.&lt;/p&gt;
+&lt;h2 id=&quot;publishing-the-editorial-gate&quot;&gt;Publishing: the editorial gate&lt;/h2&gt;
+&lt;p&gt;This is the only manual step, and it&#39;s the point:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Edit the draft — fix the title, pick the commits worth keeping, add the context the machine can&#39;t know.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;git mv content/drafts/X.md content/X.md&lt;/code&gt; — articles live at the root of &lt;code&gt;content/&lt;/code&gt;, the Terminimal convention.&lt;/li&gt;
+&lt;li&gt;Remove &lt;code&gt;draft = true&lt;/code&gt; from the front matter and set a real date.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;git push&lt;/code&gt; — the site builds and deploys.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Everything before step 1 is disposable. The draft is a starting point, never the product.&lt;/p&gt;
+&lt;h2 id=&quot;configuration&quot;&gt;Configuration&lt;/h2&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;File / env&lt;/th&gt;&lt;th&gt;Purpose&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;scripts/repos.json&lt;/code&gt;&lt;/td&gt;&lt;td&gt;Watched repos, each with a &lt;code&gt;lang&lt;/code&gt; tag and optional &lt;code&gt;sources&lt;/code&gt; (draco URL list).&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;scripts/local.json&lt;/code&gt;&lt;/td&gt;&lt;td&gt;Local checkout paths (&lt;code&gt;local_path&lt;/code&gt;). Gitignored.&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;GH_TOKEN&lt;/code&gt;&lt;/td&gt;&lt;td&gt;GitHub API auth. CI uses &lt;code&gt;secrets.GITHUB_TOKEN&lt;/code&gt;.&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;INGEST_DAYS&lt;/code&gt;&lt;/td&gt;&lt;td&gt;Lookback window in days. Default 7.&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;DRACO_URL&lt;/code&gt;&lt;/td&gt;&lt;td&gt;draco daemon URL. Enables scrape enrichment when set.&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;p&gt;The whole thing is deliberately dumb: pull activity, write a draft, let a person decide. The automation removes the blank page, not the judgment.&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Dogfooding: Graphify Extracts Its Own Codebase</title>
+        <published>2026-08-06T00:03:00+00:00</published>
+        <updated>2026-08-06T00:03:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/dogfooding-graphify-extracts-its-own-codebase/"/>
+        <id>https://cawa0505.github.io/dogfooding-graphify-extracts-its-own-codebase/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/dogfooding-graphify-extracts-its-own-codebase/">&lt;p&gt;The best test of a codebase-graph tool is its own codebase. &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify&lt;/a&gt; doesn&#39;t just ship graphs for other repos — we run it on itself in CI and in this article. Measured just now, on the project&#39;s own source:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;$ graphify extract .&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Successfully extracted graph to graphify-out/graph.toon (nodes: 225, edges: 750)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Elapsed (wall clock): 0.25 s   (second run: 0.12 s)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Maximum resident set size: ~17 MB&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;225 nodes, 750 edges, one quarter of a second, less RAM than a browser tab. That&#39;s the whole promise of the Rust rewrite (&lt;a href=&quot;/26x-faster-rewriting-the-codebase-grapher-in-rust/&quot;&gt;part 2&lt;/a&gt;) in one command line.&lt;/p&gt;
+&lt;h2 id=&quot;what-the-graph-looks-like&quot;&gt;What the graph looks like&lt;/h2&gt;
+&lt;p&gt;The workspace is split into focused crates, and the graph shows it:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;graphify-core&lt;/strong&gt; — AST parsing and the graph data model&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-llm&lt;/strong&gt; — the semantic pass and rate-limit handling (&lt;code&gt;AutoRotatePipeline&lt;/code&gt; lives at &lt;code&gt;graphify-llm/src/pipeline.rs:9&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-cli&lt;/strong&gt; — &lt;code&gt;extract&lt;/code&gt;, &lt;code&gt;query&lt;/code&gt;, &lt;code&gt;path&lt;/code&gt;, &lt;code&gt;index&lt;/code&gt;, &lt;code&gt;tui&lt;/code&gt;, &lt;code&gt;install-skill&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-mcp&lt;/strong&gt; — the &lt;a rel=&quot;external&quot; href=&quot;https://modelcontextprotocol.io&quot;&gt;Model Context Protocol&lt;/a&gt; server so assistants query the graph directly&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-out&lt;/strong&gt; — the &lt;code&gt;.toon&lt;/code&gt; format crate&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;querying-it&quot;&gt;Querying it&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;query&lt;/code&gt; and &lt;code&gt;path&lt;/code&gt; work on the extracted graph, so an assistant (or a human) can ask structural questions without reading the whole repo:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;$ graphify query &amp;quot;./graphify-llm/src/pipeline.rs:struct:AutoRotatePipeline&amp;quot; --depth 1&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;...returns the node with its neighbors — who calls what, where the struct starts (&lt;code&gt;pipeline.rs:9&lt;/code&gt;), what module it belongs to. &lt;code&gt;graphify path A B&lt;/code&gt; answers &quot;how do these two subsystems connect?&quot;&lt;/p&gt;
+&lt;h2 id=&quot;why-dogfooding-matters&quot;&gt;Why dogfooding matters&lt;/h2&gt;
+&lt;p&gt;Three things running graphify on itself catches, that manual docs would miss:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Extraction must be fast enough to feel instant&lt;/strong&gt; — the TUI re-extracts live as you navigate.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;The MCP server must actually answer&lt;/strong&gt; — we use it while developing, so a broken query path is a broken day.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;The graph must match reality&lt;/strong&gt; — the crate split above is verified by the graph, not by prose.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Graphify is open source. If you build AI agents that work across codebases, this is what they see when they look at a repo.&lt;/p&gt;
+&lt;p&gt;→ &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify on GitHub&lt;/a&gt;&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Archive</title>
+        <published>2026-08-06T00:00:00+00:00</published>
+        <updated>2026-08-06T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/archive/"/>
+        <id>https://cawa0505.github.io/archive/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/archive/"></content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>OpenDocuments: A Self-Hosted RAG Platform That Fits in a Single Binary</title>
+        <published>2026-08-06T00:00:00+00:00</published>
+        <updated>2026-08-06T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/opendocuments-self-hosted-rag-single-binary/"/>
+        <id>https://cawa0505.github.io/opendocuments-self-hosted-rag-single-binary/</id>
+        
+        <summary type="html">&lt;p&gt;OpenDocuments is a self-hosted RAG platform: point it at a folder of PDFs, DOCX, XLSX, Markdown files or web pages, and it builds an AI-searchable knowledge base with cited answers. It ships as one Rust binary that embeds both the Axum API server and the React WebUI via &lt;code&gt;rust-embed&lt;/code&gt; — no Node runtime, no external assets, nothing to install besides the executable.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>26× Faster: Rewriting the Codebase Grapher in Rust</title>
+        <published>2026-08-05T00:02:00+00:00</published>
+        <updated>2026-08-05T00:02:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/26x-faster-rewriting-the-codebase-grapher-in-rust/"/>
+        <id>https://cawa0505.github.io/26x-faster-rewriting-the-codebase-grapher-in-rust/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/26x-faster-rewriting-the-codebase-grapher-in-rust/">&lt;p&gt;The Python prototype of &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify&lt;/a&gt; was reliable — 429 auto-rotation and provider failover meant it kept working under real rate limits (&lt;a href=&quot;/rate-limits-429-auto-rotation/&quot;&gt;part 1&lt;/a&gt;). But it was slow, and it shipped a whole environment.&lt;/p&gt;
+&lt;p&gt;The numbers that decided the rewrite:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;420 ms&lt;/strong&gt; to extract a benchmark repo of 110 source files / 422 edges — in Python&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;16 ms&lt;/strong&gt; for the same extraction — in Rust&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;26.25×&lt;/strong&gt; faster, measured on the same machine in the repo&#39;s own benchmark&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;why-rust-won&quot;&gt;Why Rust won&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Rayon parallelism, not threads by hand.&lt;/strong&gt; Source files are independent until the graph is linked, so extraction parallelizes across cores with Rayon and gets a near-linear speedup. The Python version was single-threaded — that alone was most of the gap.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;petgraph with arena pre-allocation.&lt;/strong&gt; Node and edge storage is a flat arena allocated up front for the expected size, so graph construction avoids per-node allocation churn. The graph structure is the product; making it cheap to build is the whole game.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;A binary, not an environment.&lt;/strong&gt; The Python version needed a multi-GB interpreter + dependency stack on every machine that ran it. The Rust release build is a single static binary you drop anywhere — which is what made a CLI and TUI practical.&lt;/p&gt;
+&lt;h2 id=&quot;the-tui-was-a-side-effect-of-going-native&quot;&gt;The TUI was a side effect of going native&lt;/h2&gt;
+&lt;p&gt;Once the core was a fast library, the interactive front-end stopped being a web app question and became a terminal question:&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/graphify-tui-demo.gif&quot; alt=&quot;graphify TUI demo&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;Because extraction takes milliseconds, the TUI can re-extract live and re-render the graph as you navigate — something an HTTP round-trip to a Python service could never feel like.&lt;/p&gt;
+&lt;h2 id=&quot;tokens-are-the-real-currency&quot;&gt;Tokens are the real currency&lt;/h2&gt;
+&lt;p&gt;For AI assistants, the output format matters as much as speed. The Rust version emits a compact columnar &lt;code&gt;.toon&lt;/code&gt; (Token-Oriented Object Notation) text format instead of JSON — 74 KB vs 185 KB for the same graph (−60% tokens).&lt;/p&gt;
+&lt;p&gt;Two phases in, the tool is reliable and fast. &lt;a href=&quot;/dogfooding-graphify-extracts-its-own-codebase/&quot;&gt;Part 3: it extracts its own codebase&lt;/a&gt; — and the numbers are real.&lt;/p&gt;
+&lt;p&gt;→ &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify on GitHub&lt;/a&gt;&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Rate Limits Are Runtime Reality: Building 429 Auto-Rotation into a Codebase Grapher</title>
+        <published>2026-08-04T00:01:00+00:00</published>
+        <updated>2026-08-04T00:01:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/rate-limits-429-auto-rotation/"/>
+        <id>https://cawa0505.github.io/rate-limits-429-auto-rotation/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/rate-limits-429-auto-rotation/">&lt;p&gt;AI agents can&#39;t navigate a codebase they can&#39;t see. Give an agent a plain file tree and it will guess; give it a semantic graph of symbols, imports and call relationships, and it can plan before it reads. That&#39;s the problem &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify&lt;/a&gt; exists to solve: turn a repository into a structural graph an LLM can reason over.&lt;/p&gt;
+&lt;p&gt;This post is the first of three about how it was built — reliability first, performance second, dogfooding third.&lt;/p&gt;
+&lt;h2 id=&quot;phase-1-the-python-prototype&quot;&gt;Phase 1: the Python prototype&lt;/h2&gt;
+&lt;p&gt;The first version was a Python toolchain: parse source into AST nodes, run a semantic pass over the graph with an LLM, emit a graph file the assistant consumes. It worked. Then it hit production reality: cloud LLM rate limits.&lt;/p&gt;
+&lt;p&gt;Calling a public API at any concurrency, 429s stop being an exception and become a steady-state signal. The naive fix — retry with sleep — makes the pipeline &lt;em&gt;predictable&lt;/em&gt; in the worst way: every key exhausted means a serial pause, and every pause adds seconds to an interactive flow.&lt;/p&gt;
+&lt;h2 id=&quot;429-auto-rotation-the-design&quot;&gt;429 auto-rotation: the design&lt;/h2&gt;
+&lt;p&gt;The Python version&#39;s answer was a rotation layer, later carried into the Rust rewrite as &lt;code&gt;AutoRotatePipeline&lt;/code&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Multi-key rotation&lt;/strong&gt; — keys are pooled and picked with an atomic modulo counter. Rotation is O(1), thread-safe, and never blocks on a mutex around the choice itself.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Zero-sleep retry&lt;/strong&gt; — on a 429 the pipeline rotates to the next key immediately instead of sleeping. The cost of a busy rotate is far lower than a serial sleep, and with enough keys in the pool the pipeline keeps moving.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Provider failover&lt;/strong&gt; — the chain degrades deliberately: cloud keys first, then a local fallback (&lt;a rel=&quot;external&quot; href=&quot;https://ollama.com&quot;&gt;Ollama&lt;/a&gt; with a small local model). The pipeline never hard-stops on a cloud outage; it degrades to slower local inference instead of failing.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The lesson that shaped the whole project: &lt;strong&gt;rate limits are not an edge case, they are a runtime condition.&lt;/strong&gt; Any tool that hits LLM APIs and doesn&#39;t model rotation, failover and degradation as first-class concerns will fall over exactly when a user needs it.&lt;/p&gt;
+&lt;p&gt;Phase 1 made graphify &lt;em&gt;reliable&lt;/em&gt;. Phase 2, the Rust rewrite, made it &lt;em&gt;fast&lt;/em&gt; — &lt;a href=&quot;/26x-faster-rewriting-the-codebase-grapher-in-rust/&quot;&gt;read it here&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;→ &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify on GitHub&lt;/a&gt;&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>opencode-speak-human-tw: A Plugin That Strips the AI Smell Out of Writing</title>
+        <published>2026-08-03T00:00:00+00:00</published>
+        <updated>2026-08-03T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/opencode-speak-human-tw-de-ai-plugin/"/>
+        <id>https://cawa0505.github.io/opencode-speak-human-tw-de-ai-plugin/</id>
+        
+        <summary type="html">&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/opencode-speak-human-tw&quot;&gt;opencode-speak-human-tw&lt;/a&gt; is an OpenCode plugin port of Raymond Hou&#39;s &lt;a rel=&quot;external&quot; href=&quot;https://github.com/Raymondhou0917/speak-human-tw&quot;&gt;speak-human-tw&lt;/a&gt; — a rewriting skill that removes AI-flavored phrasing, mainland-China vocabulary and half-width punctuation from Traditional Chinese copy, so the result reads like a person wrote it.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>draco: A Firecrawl Alternative Without the Browser Boot</title>
+        <published>2026-08-02T00:00:00+00:00</published>
+        <updated>2026-08-02T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/draco-firecrawl-alternative-without-browser-boot/"/>
+        <id>https://cawa0505.github.io/draco-firecrawl-alternative-without-browser-boot/</id>
+        
+        <summary type="html">&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/draco&quot;&gt;draco&lt;/a&gt; is a native-Rust web scraper designed as an MCP server. Point it at a URL and get clean Markdown + metadata back — no Node, no headless-Chrome fleet, no per-request browser boot. It is positioned as the lightweight half of a scrape stack: use draco for content, structured data and DOM interaction; escalate to a real browser only when the task needs layout, screenshots or downloads.&lt;/p&gt;
+&lt;p&gt;It is a fork of &lt;a rel=&quot;external&quot; href=&quot;https://github.com/0xchasercat/draco&quot;&gt;0xchasercat/draco&lt;/a&gt; — the MCP ergonomics layer and anti-blocking engine described below are fork work, layered on the upstream core. We built what we needed for our own agent workflows and share it back; the upstream author gets full credit for the base.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>ax-mcp: A Remote Scraping MCP Server over Streamable HTTP</title>
+        <published>2026-08-01T00:00:00+00:00</published>
+        <updated>2026-08-01T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/ax-mcp-remote-scraping-over-streamable-http/"/>
+        <id>https://cawa0505.github.io/ax-mcp-remote-scraping-over-streamable-http/</id>
+        
+        <summary type="html">&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/ax-mcp&quot;&gt;ax-mcp&lt;/a&gt; is a small Node.js MCP server that wraps &lt;a rel=&quot;external&quot; href=&quot;https://github.com/yusukebe/ax&quot;&gt;&lt;code&gt;ax&lt;/code&gt;&lt;/a&gt; — &quot;curl for the AI era&quot; — and exposes it as a &lt;strong&gt;remote&lt;/strong&gt; MCP endpoint. The point is transport: instead of SSE long-connections that die across reverse proxies, the server is bridged through &lt;code&gt;supergateway&lt;/code&gt; to Streamable HTTP (&lt;code&gt;POST /mcp&lt;/code&gt;), the native shape of OpenCode&#39;s &lt;code&gt;type: &quot;remote&quot;&lt;/code&gt;.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>code-relay-mcp: Cross-Session State Handoff in a Rust Binary</title>
+        <published>2026-07-31T00:00:00+00:00</published>
+        <updated>2026-07-31T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/code-relay-mcp-cross-session-state-handoff/"/>
+        <id>https://cawa0505.github.io/code-relay-mcp-cross-session-state-handoff/</id>
+        
+        <summary type="html">&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/code-relay-mcp&quot;&gt;code-relay-mcp&lt;/a&gt; is a native-Rust MCP server that manages cross-session, cross-repository handoffs for coding agents. It is the engine behind the code-relay workflow, replacing the old Node.js &lt;code&gt;@jimmyyen/opencode-code-relay-plugin&lt;/code&gt; while keeping 100% backward compatibility — existing workflows and prompts keep working, they just get faster underneath.&lt;/p&gt;</summary>
+        
+    </entry>
+</feed>

@@ -1,0 +1,443 @@
+/* Custom overrides on top of terminimal — Dracula palette */
+
+/* --- Background / accent --- */
+:root {
+  --drac-bg: #282a36;
+  --drac-current: #44475a;
+  --drac-fg: #f8f8f2;
+  --drac-comment: #6272a4;
+  --drac-cyan: #8be9fd;
+  --drac-green: #50fa7b;
+  --drac-purple: #bd93f9;
+  --drac-yellow: #f1fa8c;
+}
+
+/* --- Global guard: no horizontal scroll from glow shadows --- */
+html,
+body {
+  overflow-x: clip;
+}
+
+/* --- Full-width container: drop the 864px cap, let content breathe --- */
+.container {
+  max-width: none;
+  margin: 0;
+}
+
+/* --- Text selection in Dracula purple --- */
+::selection {
+  background: rgba(189, 147, 249, 0.35);
+  color: var(--drac-fg);
+}
+
+/* --- Scrollbars (WebKit) --- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--drac-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--drac-current);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--drac-purple);
+}
+
+/* --- Links: Dracula cyan with hover glow --- */
+a {
+  color: var(--drac-cyan);
+  transition: color 0.15s ease, text-shadow 0.15s ease;
+}
+
+a:hover {
+  color: var(--drac-cyan);
+  text-shadow: 0 0 8px rgba(139, 233, 253, 0.6);
+}
+
+/* --- Headings: heavier weight --- */
+h1, h2, h3, h4,
+.post-title,
+.post-title a {
+  font-weight: 700;
+}
+
+/* --- Horizontal rule: subtle terminal divider --- */
+hr {
+  border: none;
+  border-top: 1px solid var(--drac-current);
+}
+
+/* --- Tables: Dracula grid --- */
+table {
+  border-collapse: collapse;
+}
+
+th, td {
+  border: 1px solid var(--drac-current);
+  padding: 6px 12px;
+}
+
+th {
+  background: rgba(68, 71, 90, 0.4);
+}
+
+/* --- Inline code --- */
+code {
+  background: var(--drac-bg);
+  color: var(--drac-fg);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* --- Terminal / code blocks (giallo-style) --- */
+pre {
+  /* giallo emits inline background-color; force the darker terminal bg */
+  background: #1e1f29 !important;
+  color: var(--drac-fg);
+  border-radius: 8px;
+  padding: 36px 16px 16px;
+  border: 1px solid var(--drac-current);
+  box-shadow: 0 0 24px rgba(189, 147, 249, 0.12), 0 4px 12px rgba(0, 0, 0, 0.4);
+  position: relative;
+  overflow-x: auto;
+}
+
+pre code {
+  background: transparent;
+  padding: 0;
+}
+
+pre::-webkit-scrollbar {
+  height: 8px;
+}
+
+/* macOS-style window dots */
+pre::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ff5555;
+  box-shadow: 16px 0 0 var(--drac-yellow), 32px 0 0 var(--drac-green);
+}
+
+/* --- Quotes: terminal prompt block ---
+   Kill the theme's floating ” glyph (it positioned outside the
+   block and got clipped at the left) and the top/bottom accent
+   borders (they overhung the right rounded corners). Left purple
+   bar + dark slab reads like a terminal reply block. */
+blockquote {
+  position: relative;
+  border-top: none;
+  border-bottom: none;
+  border-left: 3px solid var(--drac-purple);
+  border-radius: 0 8px 8px 0;
+  background: rgba(40, 42, 54, 0.6);
+  padding: 14px 20px;
+  margin: 24px 0;
+  overflow: hidden;
+  font-family: "Hack", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.92em;
+  color: var(--drac-fg);
+}
+
+blockquote::before {
+  content: none; /* remove the theme's giant ” glyph */
+}
+
+/* --- Donate wallet --- */
+.donate-wallet {
+  margin: 24px 0;
+  text-align: center;
+}
+
+.donate-wallet code {
+  display: inline-block;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  font-family: "Hack", "SFMono-Regular", Consolas, monospace;
+  font-size: 1.05rem;
+  letter-spacing: 0.5px;
+  padding: 14px 20px;
+  border-radius: 10px;
+  background: var(--drac-bg);
+  border: 1px solid var(--drac-comment);
+  color: var(--drac-green);
+  cursor: copy;
+  user-select: all;
+  box-shadow: 0 0 24px rgba(80, 250, 123, 0.15);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.donate-wallet code:hover {
+  border-color: var(--drac-green);
+  box-shadow: 0 0 32px rgba(80, 250, 123, 0.3);
+}
+
+.donate-wallet code.copied {
+  border-color: var(--drac-green);
+  box-shadow: 0 0 40px rgba(80, 250, 123, 0.5);
+}
+
+.donate-wallet code.copied::after {
+  content: " ✓ copied";
+  color: var(--drac-yellow);
+}
+
+.donate-hint {
+  margin-top: 10px;
+  font-size: 0.8rem;
+  color: var(--drac-comment);
+}
+
+/* --- Container: breathing room (theme ships 40px/20px; tune mobile) --- */
+.container {
+  box-sizing: border-box;
+}
+
+@media (max-width: 683px) {
+  .container {
+    padding: 20px 16px;
+  }
+}
+
+/* --- Blog listing: coherent rhythm (outer gap + inner padding) ---
+   One spacing system: .posts gap owns the space BETWEEN cards,
+   card padding owns the space INSIDE. Border is reserved in the
+   default state so hover never shifts layout. */
+.posts {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding-bottom: 8px;
+  width: 100%; /* fill .content so cards center on narrow tablets (iPad Air) */
+}
+
+.posts .post {
+  margin: 0 auto; /* horizontal auto keeps tablet-limited cards (max-width: 660px ≤899px) centered; vertical spacing owned by .posts gap */
+  padding: 24px 24px 28px;
+  background: rgba(40, 42, 54, 0.4);
+  border: 1px solid var(--drac-current);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+/* Article page: single post container (page.html wraps content in .post) */
+.content > .post {
+  width: 100%;
+  text-align: left;
+  margin: 0 auto;
+  padding: 10px 0;
+}
+
+.posts .post:hover {
+  border-color: var(--drac-purple);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transform: translateY(-2px); /* paint-only: no reflow for siblings */
+}
+
+.posts .post .post-content {
+  margin-top: 18px; /* tighter title → summary rhythm inside the card */
+}
+
+.post-intro-image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media (max-width: 683px) {
+  .posts {
+    gap: 20px;
+  }
+
+  .posts .post {
+    padding: 16px 16px 20px;
+  }
+}
+
+/* --- Pagination (in-post prev/next + list pager) --- */
+.pagination {
+  margin-top: 40px;
+  padding-top: 16px;
+  font-family: "Hack", "SFMono-Regular", Consolas, monospace;
+}
+
+.pagination__title-h {
+  color: var(--drac-comment);
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+}
+
+.pagination__buttons .button {
+  margin: 0 4px;
+  border-radius: 8px;
+  background: #1e1f29;
+  border: 1px solid var(--drac-current);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.pagination__buttons .button a {
+  color: var(--drac-purple);
+}
+
+.pagination__buttons .button:hover:not(.disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(189, 147, 249, 0.25);
+  border-color: var(--drac-purple);
+}
+
+/* --- Footer: compact, centered --- */
+.footer {
+  opacity: 0.75;
+  font-size: 0.78rem;
+  padding: 16px 0 24px;
+}
+
+.footer__inner {
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 100%; /* drop base theme's fixed 760px */
+}
+
+.footer .copyright {
+  font-size: 0.85rem;
+}
+
+.footer a {
+  color: var(--drac-purple);
+}
+
+/* --- 386-style navbar (BOOTSTRA.386 structure, Dracula palette) ---
+   Faithful to the DOS bar: fixed full-width strip, tight 0 10px
+   modules, brand left / nav right, hard edges (radius 0), and the
+   signature hover/active color inversion. */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 34px;
+  padding: 0 12px;
+  background: #1e1f29; /* one step darker than --drac-bg so the bar reads as a separate strip */
+  border-bottom: 2px solid var(--drac-current);
+}
+
+/* body offset so the fixed bar never covers content */
+body {
+  padding-top: 34px;
+}
+
+/* brand (left slot): full-height launcher block, no text — a light
+   gradient wash + thin line separator, p10k vocabulary without the
+   heavy fill */
+.header__inner {
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  align-items: stretch;
+}
+
+.header__logo {
+  flex: 0 0 auto;
+  align-self: stretch; /* span the full bar height */
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  /* plain text-icon: no gradient wash, no border frame — the glyph
+     reads as a character written on the bar */
+}
+
+.header__logo::after {
+  display: none; /* kill the theme's dashed buffer line */
+}
+
+.header__logo .logo {
+  font-size: 0; /* hide the "Jimmy Yen" text */
+  background: none;
+  padding: 0;
+}
+
+.header__logo .logo::before {
+  content: "\300A"; /* 《 (U+300A) — parent link marker, line-feel */
+  font-size: 1.5rem; /* sized to fill the bar height, like writing */
+  line-height: 1;
+  color: var(--drac-comment);
+}
+
+/* nav (right slot): one row, tight 0 10px modules like 386 */
+.header .menu {
+  margin: 0;
+  min-width: 0; /* allow the flex item to shrink so menu__inner's overflow-x:auto actually scrolls */
+  flex: 0 1 auto;
+}
+
+.header .menu__inner {
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto; /* mobile: single-line scroll instead of wrap */
+  -webkit-overflow-scrolling: touch;
+}
+
+.header .menu__inner li {
+  margin: 0 !important; /* kill base 20px gutters; 386 owns spacing via padding */
+  flex: 0 0 auto;
+}
+
+.header .menu__inner li a {
+  display: inline-block;
+  padding: 8px 10px;
+  color: var(--drac-fg);
+  font-size: 0.95rem;
+  text-decoration: none;
+  text-shadow: none;
+}
+
+/* signature DOS inversion: hover flips to foreground bg */
+.header .menu__inner li a:hover {
+  background: var(--drac-fg);
+  color: #1e1f29;
+  text-shadow: none;
+}
+
+/* active page = current position, Dracula purple block */
+.header .menu__inner li.active a {
+  background: var(--drac-purple);
+  color: #1e1f29;
+  text-shadow: none;
+}
+
+/* hide scrollbar on the single-line menu (keep scrollability) */
+.header .menu__inner::-webkit-scrollbar {
+  height: 0;
+}
+
+@media (max-width: 683px) {
+  .header {
+    padding: 0 8px;
+  }
+
+  /* hide the left logo block on phones; the scrollable menu's "home"
+     item provides the way back — keeps the bar visually consistent */
+  .header__logo {
+    display: none;
+  }
+}

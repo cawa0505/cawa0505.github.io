@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - performance</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/performance/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-05T00:02:00+00:00</updated>
+    <id>https://cawa0505.github.io/tags/performance/atom.xml</id>
+    <entry xml:lang="en">
+        <title>26× Faster: Rewriting the Codebase Grapher in Rust</title>
+        <published>2026-08-05T00:02:00+00:00</published>
+        <updated>2026-08-05T00:02:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/26x-faster-rewriting-the-codebase-grapher-in-rust/"/>
+        <id>https://cawa0505.github.io/26x-faster-rewriting-the-codebase-grapher-in-rust/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/26x-faster-rewriting-the-codebase-grapher-in-rust/">&lt;p&gt;The Python prototype of &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify&lt;/a&gt; was reliable — 429 auto-rotation and provider failover meant it kept working under real rate limits (&lt;a href=&quot;/rate-limits-429-auto-rotation/&quot;&gt;part 1&lt;/a&gt;). But it was slow, and it shipped a whole environment.&lt;/p&gt;
+&lt;p&gt;The numbers that decided the rewrite:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;420 ms&lt;/strong&gt; to extract a benchmark repo of 110 source files / 422 edges — in Python&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;16 ms&lt;/strong&gt; for the same extraction — in Rust&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;26.25×&lt;/strong&gt; faster, measured on the same machine in the repo&#39;s own benchmark&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;why-rust-won&quot;&gt;Why Rust won&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Rayon parallelism, not threads by hand.&lt;/strong&gt; Source files are independent until the graph is linked, so extraction parallelizes across cores with Rayon and gets a near-linear speedup. The Python version was single-threaded — that alone was most of the gap.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;petgraph with arena pre-allocation.&lt;/strong&gt; Node and edge storage is a flat arena allocated up front for the expected size, so graph construction avoids per-node allocation churn. The graph structure is the product; making it cheap to build is the whole game.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;A binary, not an environment.&lt;/strong&gt; The Python version needed a multi-GB interpreter + dependency stack on every machine that ran it. The Rust release build is a single static binary you drop anywhere — which is what made a CLI and TUI practical.&lt;/p&gt;
+&lt;h2 id=&quot;the-tui-was-a-side-effect-of-going-native&quot;&gt;The TUI was a side effect of going native&lt;/h2&gt;
+&lt;p&gt;Once the core was a fast library, the interactive front-end stopped being a web app question and became a terminal question:&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/graphify-tui-demo.gif&quot; alt=&quot;graphify TUI demo&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;Because extraction takes milliseconds, the TUI can re-extract live and re-render the graph as you navigate — something an HTTP round-trip to a Python service could never feel like.&lt;/p&gt;
+&lt;h2 id=&quot;tokens-are-the-real-currency&quot;&gt;Tokens are the real currency&lt;/h2&gt;
+&lt;p&gt;For AI assistants, the output format matters as much as speed. The Rust version emits a compact columnar &lt;code&gt;.toon&lt;/code&gt; (Token-Oriented Object Notation) text format instead of JSON — 74 KB vs 185 KB for the same graph (−60% tokens).&lt;/p&gt;
+&lt;p&gt;Two phases in, the tool is reliable and fast. &lt;a href=&quot;/dogfooding-graphify-extracts-its-own-codebase/&quot;&gt;Part 3: it extracts its own codebase&lt;/a&gt; — and the numbers are real.&lt;/p&gt;
+&lt;p&gt;→ &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify on GitHub&lt;/a&gt;&lt;/p&gt;
+</content>
+        
+    </entry>
+</feed>
