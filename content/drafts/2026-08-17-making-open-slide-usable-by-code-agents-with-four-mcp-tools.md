@@ -1,7 +1,6 @@
 +++
 title = "Making OpenSlide Usable by Code Agents with Four MCP Tools"
 date = 2026-08-16T20:23:05Z
-draft = true
 description = "A source-level walkthrough of OpenSlide's four MCP tools, backed by a real stdio recording and an embedded five-page deck built through the same agent workflow."
 
 [taxonomies]
