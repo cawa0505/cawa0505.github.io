@@ -93,9 +93,9 @@ We didn't start with the architecture. We started with the pain, built tools, an
 The Harness paper distinguishes two memory layers, which we only understood after building:
 
 - **Session Log**: Execution trace of a single task. Ephemeral. StateMachineMcp's `state.json` handles this.
-- **Vault Memory**: Cross-session persistent knowledge. Project rules, architectural decisions, config values. OpenCode's `ctx_memory` handles this.
+- **Vault Memory**: Cross-session persistent knowledge. Project rules, architectural decisions, config values. [Magic Context](https://github.com/cortexkit/magic-context) — an OpenCode plugin — handles this. It stores durable facts (`ctx_memory`), working notes (`ctx_note`), and full searchable session history (`ctx_search`), all surviving compaction and restarts.
 
-They're not interchangeable. The session log enables recovery **within** a task; vault memory enables continuity **across** tasks.
+They're not interchangeable. The session log enables recovery **within** a task; vault memory enables continuity **across** tasks. Magic Context is what makes this session you're reading now possible — it's been running for months, carrying context across dozens of tasks.
 
 ## Actual Cost
 
