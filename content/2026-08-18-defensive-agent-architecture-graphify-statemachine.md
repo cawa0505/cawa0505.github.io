@@ -99,7 +99,7 @@ They're not interchangeable. The session log enables recovery **within** a task;
 
 ## Actual Cost
 
-This stack runs on a ~$10/month BytePlus plan with a local GPU machine for Qdrant embeddings. Cost controls:
+This stack runs on a [~$10/month BytePlus plan](https://www.byteplus.com/activity/codingplan?ac=MMAUCIS9NT1S&rc=B8RAW4KR) with a local GPU machine for Qdrant embeddings. Cost controls:
 
 1. **Input compression**: Graphify cuts AST tokens by 90%+ before they reach the LLM.
 2. **Local validation**: StateMachineMcp catches compilation errors locally — no LLM round-trip for syntax fixes.
