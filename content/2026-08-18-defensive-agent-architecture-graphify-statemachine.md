@@ -5,7 +5,7 @@ date = 2026-08-18
 tags = ["Rust", "AI", "MCP", "open-source", "tools"]
 +++
 
-<iframe src="/defensive-agent-architecture-deck/" width="100%" height="500" style="border:1px solid rgba(255,255,255,0.1); border-radius:12px; margin-bottom:32px;" title="Defensive Agent Architecture slides"></iframe>
+<iframe src="/defensive-agent-architecture.html" width="100%" height="500" style="border:1px solid rgba(255,255,255,0.1); border-radius:12px; margin-bottom:32px;" title="Defensive Agent Architecture slides"></iframe>
 
 What's the biggest problem with using AI to write code? For us, it's not that the models aren't smart enough — it's that **we can't trust them**.
 
