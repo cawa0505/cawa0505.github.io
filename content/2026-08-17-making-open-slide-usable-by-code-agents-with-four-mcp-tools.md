@@ -15,7 +15,7 @@ A human can answer an overwrite prompt, watch terminal output, and decide what c
 
 ![OpenSlide MCP stdio demo](/open-slide-mcp-demo.gif)
 
-The recording above uses a real MCP client over stdio. It lists the server's registered tools and calls `open_slide_sync_skills` in dry-run mode against the workspace used for this article.
+The recording above shows the real end-to-end flow: the five-page brief, the agent-authored slide source, and `open_slide_build` resolving the output directory — all through a real MCP client over stdio.
 
 ## The boundary was the missing piece
 
