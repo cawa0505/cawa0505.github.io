@@ -18,7 +18,7 @@ The benchmark runs against a production-like deployment on a homelab Linux (Cach
 
 | Component | Detail |
 |-----------|--------|
-| **GPU** | AMD 16GB (15.9 GiB) via ROCm |
+| **GPU** | AMD Radeon RX 9060 XT 16GB (15.9 GiB) via ROCm |
 | **Model** | Qwen3.5-9B (8.95B params, Q4_K ~5.7GB GGUF) |
 | **Backend** | llama.cpp (llama-server, ROCm HIP build) on 192.168.77.185:8081 |
 | **Verifier** | Docker container (llm-verifier), port 8010, local network |
