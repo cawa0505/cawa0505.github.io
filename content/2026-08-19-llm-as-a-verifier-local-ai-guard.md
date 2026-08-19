@@ -49,7 +49,7 @@ The core idea: **demote the LLM from a system-write-privileged executor to an in
                                     ▼
 ┌────────────────────────────────────────────────────────────────────────┐
 │ docker-llm-as-a-verifier (Local ROCm Backend / llama-server)           │
-│ └── Unsloth Qwen3.5 9B VL / Qwen2.5-Coder 7B (GGUF)                   │
+│ └── Qwen3.5-9B with mmproj (GGUF)                   │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -77,7 +77,7 @@ When the agent proposes a code change with hidden risks, the defensive closure w
 
 1. Coder Agent submits a change proposal.
 2. `guardrail-mcp` triggers Track 1: `graphify-core` scans and detects an interface discontinuity.
-3. If Track 1 passes, Track 2 fires: HTTP POST to the Docker `/v1/directed` endpoint (ROCm 9B VL).
+3. If Track 1 passes, Track 2 fires: HTTP POST to the Docker `/v1/directed` endpoint (Qwen3.5-9B with mmproj).
 4. Verifier returns REJECTED with this payload:
    ```json
    {
@@ -88,7 +88,7 @@ When the agent proposes a code change with hidden risks, the defensive closure w
    ```
 5. The orchestrator captures `ast_node_id` and instructs the agent to perform a local micro-patch targeting only `Node#402` — no full-file re-reads!
 
-**Dual verification bonus**: UI changes can be further validated by Qwen3.5 9B VL reviewing Playwright rendering screenshots (Visual Guard), ensuring no layout breakage or CSS regressions.
+**Dual verification bonus**: UI changes can be further validated by Qwen3.5-9B with mmproj reviewing Playwright rendering screenshots (Visual Guard), ensuring no layout breakage or CSS regressions.
 
 ## 6. Conclusion: Take Control and Compute Back to the Edge
 
