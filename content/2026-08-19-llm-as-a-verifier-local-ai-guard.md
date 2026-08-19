@@ -22,7 +22,7 @@ Autonomous coding agents (OpenCode, Claude Code, etc.) have fundamentally change
 
 On a Homelab / Linux (CachyOS) setup, pairing a Radeon RX 9060 XT 16GB with the ROCm backend is the sweet spot for cost-performance:
 
-- **HIP matrix acceleration & VRAM throughput**: ROCm's native HIP acceleration lets 16GB VRAM comfortably handle Qwen2.5-Coder-7B (code semantics) and Qwen3.5 9B VL (multimodal vision).
+- **HIP matrix acceleration & VRAM throughput**: ROCm's native HIP acceleration lets 16GB VRAM comfortably handle Qwen3.5-9B with mmproj (code semantics + multimodal vision).
 - **Escaping the vLLM VRAM trap**: vLLM's 90% pre-allocation policy is a disaster on a single multi-tasking machine. Switch to the ROCm build of llama-server (GGUF quantization). Model weights consume only 5–9 GB of VRAM, leaving room for dynamic KV cache allocation while the host runs other services.
 - **Zero API cost**: Triggering 10,000 `/v1/directed` scoring calls through the 2PC (two-phase commit) gate costs nothing more than pocket change in electricity. Token anxiety gone.
 
