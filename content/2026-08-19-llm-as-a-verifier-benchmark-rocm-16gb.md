@@ -150,7 +150,7 @@ The local LLM-as-a-Verifier setup works on a single 16GB AMD GPU:
 - **Cache hit rate**: 66% — repeated comparisons are nearly free
 - **Score quality**: Clean separation between correct (1.0) and incorrect (0.0–0.14)
 
-The setup costs about $1,000 (the GPU) and runs on a standard Linux machine with ROCm. No cloud API keys, no monthly bills, no data leakage.
+The setup costs under $500 (the GPU) and runs on a standard Linux machine with ROCm. No cloud API keys, no monthly bills, no data leakage.
 
 The next step is to benchmark the OpenRouter free route as a cloud baseline and measure concurrent throughput under load. But even without that comparison, the local path is already practical for daily use.
 

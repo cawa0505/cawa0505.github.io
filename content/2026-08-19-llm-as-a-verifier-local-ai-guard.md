@@ -92,7 +92,7 @@ When the agent proposes a code change with hidden risks, the defensive closure w
 
 ## 6. Conclusion: Take Control and Compute Back to the Edge
 
-You don't need a hundred-thousand-dollar A100 cluster. You don't need to pay monthly tribute to cloud API giants. With a Rust-based deterministic graph, a 2PC state-machine guard, and an AMD ROCm-powered local multimodal verifier, we've built a fully private, zero-leakage AI exoskeleton with production-grade PRM capability — all on a $1,000 consumer GPU.
+You don't need a hundred-thousand-dollar A100 cluster. You don't need to pay monthly tribute to cloud API giants. With a Rust-based deterministic graph, a 2PC state-machine guard, and an AMD ROCm-powered local multimodal verifier, we've built a fully private, zero-leakage AI exoskeleton with production-grade PRM capability — all on a sub-$500 consumer GPU.
 
 **Open-source repositories:**
 - 2PC guard gate: [github.com/cawa0505/guardrail-mcp](https://github.com/cawa0505/guardrail-mcp)
