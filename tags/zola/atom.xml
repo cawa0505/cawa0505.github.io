@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - zola</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/zola/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-06T00:05:00+00:00</updated>
+    <id>https://cawa0505.github.io/tags/zola/atom.xml</id>
+    <entry xml:lang="en">
+        <title>Porting Terminimal to Zola 0.23: When Tera Deleted Macros</title>
+        <published>2026-08-06T00:05:00+00:00</published>
+        <updated>2026-08-06T00:05:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/porting-terminimal-to-zola-0-23/"/>
+        <id>https://cawa0505.github.io/porting-terminimal-to-zola-0-23/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/porting-terminimal-to-zola-0-23/">&lt;p&gt;Zola 0.23 shipped on 2026-08-05 with a template engine that is not backwards compatible. It bundles Tera 2 — a full rewrite — and the upgrade broke macro-based themes in the ecosystem, including &lt;a rel=&quot;external&quot; href=&quot;https://github.com/pawroman/zola-theme-terminimal&quot;&gt;Terminimal&lt;/a&gt;, the one this site runs on. Upstream hadn&#39;t been touched for 0.20+, so I ported it myself. Here&#39;s what actually changed.&lt;/p&gt;
+&lt;h2 id=&quot;what-zola-is-briefly&quot;&gt;What Zola is, briefly&lt;/h2&gt;
+&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://www.getzola.org/&quot;&gt;Zola&lt;/a&gt; is a static site generator in a single Rust binary. No Node, no Ruby, no plugin ecosystem to keep alive — you write Markdown, it builds HTML. It uses &lt;a rel=&quot;external&quot; href=&quot;https://github.com/Keats/tera&quot;&gt;Tera&lt;/a&gt; for templating, a Jinja2-like engine. That engine is exactly what changed under it.&lt;/p&gt;
+&lt;h2 id=&quot;tera-2-deleted-macros&quot;&gt;Tera 2 deleted macros&lt;/h2&gt;
+&lt;p&gt;The migration guide is blunt about it:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Macros? Yep completely gone. Nada. They are replaced with components.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Terminimal is built out of macros — &lt;code&gt;date&lt;/code&gt;, &lt;code&gt;head&lt;/code&gt;, &lt;code&gt;menu&lt;/code&gt;, &lt;code&gt;post&lt;/code&gt;, &lt;code&gt;title&lt;/code&gt; — 11 of them across 5 files, called from every template. In Tera 1 you imported and called them:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% import &amp;quot;macros/post.html&amp;quot; as post_macros %}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{{ post_macros::header(page=page) }}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In Tera 2 that entire model is gone. No &lt;code&gt;{% import %}&lt;/code&gt;, no &lt;code&gt;::&lt;/code&gt;, no &lt;code&gt;{% macro %}&lt;/code&gt;. Components replace them, and they are &lt;strong&gt;globally registered&lt;/strong&gt; — any template containing a &lt;code&gt;{% component %}&lt;/code&gt; block is available everywhere, no import step.&lt;/p&gt;
+&lt;h3 id=&quot;define&quot;&gt;Define&lt;/h3&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% component header(page) %}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  &amp;lt;h1&amp;gt;{{ page.title }}&amp;lt;/h1&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% endcomponent header %}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;h3 id=&quot;call-jsx-not-function-calls&quot;&gt;Call — JSX, not function calls&lt;/h3&gt;
+&lt;p&gt;This is the part that trips you up. Invocation is a JSX-like tag, not a function call:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{# Tera 1 #}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{{ post_macros::header(page=page) }}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{# Tera 2 #}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{{&amp;lt;header page={page}/&amp;gt;}}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;String literals stay bare; every non-string value goes in braces: &lt;code&gt;page={page}&lt;/code&gt;, &lt;code&gt;summary={true}&lt;/code&gt;, &lt;code&gt;short={true}&lt;/code&gt;. To capture output into a variable you self-close inside &lt;code&gt;set&lt;/code&gt;:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% set title = &amp;lt;title page_title={page.title} main_title={config.title}/&amp;gt; %}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;h3 id=&quot;the-gotcha-no-ambient-context&quot;&gt;The gotcha: no ambient context&lt;/h3&gt;
+&lt;p&gt;Macros in Tera 1 could see the global template context. &lt;strong&gt;Components can&#39;t.&lt;/strong&gt; A component only receives what you pass it. Terminimal&#39;s &lt;code&gt;title&lt;/code&gt; macro read &lt;code&gt;config.extra.page_titles&lt;/code&gt; directly; the &lt;code&gt;menu&lt;/code&gt; macro read &lt;code&gt;current_url&lt;/code&gt;. Both broke silently until every call site was updated to pass those in explicitly:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{{&amp;lt;menu config={config} current_path={current_path} current_url={current_url}/&amp;gt;}}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That&#39;s the real migration cost — not the mechanical &lt;code&gt;::&lt;/code&gt; → &lt;code&gt;.&lt;/code&gt; rename, but hunting down every implicit context read and threading it through as an argument.&lt;/p&gt;
+&lt;h2 id=&quot;shortcodes-are-gone-too&quot;&gt;Shortcodes are gone too&lt;/h2&gt;
+&lt;p&gt;Same release, second surprise, straight from the changelog:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;As mentioned, shortcodes have been completely removed. [...] just use Tera, the same components you can use elsewhere in your site.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Terminimal&#39;s &lt;code&gt;figure&lt;/code&gt; and &lt;code&gt;image&lt;/code&gt; shortcodes became components. In content, the call syntax changes from the old &lt;code&gt;{{ figure(src=&quot;...&quot;) }}&lt;/code&gt; to the component form:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;markdown&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{{&amp;lt; figure src=&amp;quot;/img/x.png&amp;quot; /&amp;gt;}}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;No more separate &lt;code&gt;templates/shortcodes/&lt;/code&gt; mental model — it&#39;s components all the way down.&lt;/p&gt;
+&lt;h2 id=&quot;the-tests-changed-shape&quot;&gt;The tests changed shape&lt;/h2&gt;
+&lt;p&gt;String tests moved to named arguments. What used to be positional now errors without a keyword:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{# breaks in Tera 2 #}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% if url is starting_with(&amp;quot;http&amp;quot;) %}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{# works #}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% if url is starting_with(pat=&amp;quot;http&amp;quot;) %}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&quot;one-genuine-zola-bug&quot;&gt;One genuine Zola bug&lt;/h2&gt;
+&lt;p&gt;After the theme compiled, feeds still crashed. Zola 0.23&#39;s &lt;strong&gt;built-in&lt;/strong&gt; &lt;code&gt;rss.xml&lt;/code&gt; appears to read &lt;code&gt;section.title&lt;/code&gt; without guarding whether &lt;code&gt;section&lt;/code&gt; is defined — on a taxonomy or a feed with no backing section, that&#39;s an undefined-variable error. &lt;code&gt;atom.xml&lt;/code&gt; guards it; &lt;code&gt;rss.xml&lt;/code&gt; doesn&#39;t. Not a theme problem, a shipped bug.&lt;/p&gt;
+&lt;p&gt;The fix is a theme-level override: drop a corrected &lt;code&gt;rss.xml&lt;/code&gt; into the theme&#39;s &lt;code&gt;templates/&lt;/code&gt;, add the missing guard, and Zola prefers it over its built-in. Feeds restored, no fork of Zola required.&lt;/p&gt;
+&lt;h2 id=&quot;the-scoreboard&quot;&gt;The scoreboard&lt;/h2&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Change&lt;/th&gt;&lt;th&gt;Count&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;{% macro %}&lt;/code&gt; → &lt;code&gt;{% component %}&lt;/code&gt;&lt;/td&gt;&lt;td&gt;11, across 5 files&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Call sites rewritten to &lt;code&gt;{{&amp;lt;fn .../&amp;gt;}}&lt;/code&gt;&lt;/td&gt;&lt;td&gt;6 templates&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Shortcodes → components&lt;/td&gt;&lt;td&gt;&lt;code&gt;figure&lt;/code&gt;, &lt;code&gt;image&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Test syntax fixed&lt;/td&gt;&lt;td&gt;&lt;code&gt;starting_with(pat=...)&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Zola built-in bugs worked around&lt;/td&gt;&lt;td&gt;1 (&lt;code&gt;rss.xml&lt;/code&gt; guard)&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;p&gt;Build time after the port: &lt;strong&gt;~460 ms&lt;/strong&gt; for the full site. The single-binary promise still holds — the engine underneath it just moved.&lt;/p&gt;
+&lt;p&gt;Migration guides referenced: &lt;a rel=&quot;external&quot; href=&quot;https://github.com/Keats/tera/blob/master/MIGRATION.md&quot;&gt;Tera v1→v2&lt;/a&gt; (canonical — Tera&#39;s own docs site is still offline), &lt;a rel=&quot;external&quot; href=&quot;https://github.com/getzola/zola/blob/master/CHANGELOG.md&quot;&gt;Zola CHANGELOG&lt;/a&gt;.&lt;/p&gt;
+</content>
+        
+    </entry>
+</feed>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - javascript</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/javascript/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-03T00:00:00+00:00</updated>
+    <id>https://cawa0505.github.io/tags/javascript/atom.xml</id>
+    <entry xml:lang="en">
+        <title>opencode-speak-human-tw: A Plugin That Strips the AI Smell Out of Writing</title>
+        <published>2026-08-03T00:00:00+00:00</published>
+        <updated>2026-08-03T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/opencode-speak-human-tw-de-ai-plugin/"/>
+        <id>https://cawa0505.github.io/opencode-speak-human-tw-de-ai-plugin/</id>
+        
+        <summary type="html">&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/opencode-speak-human-tw&quot;&gt;opencode-speak-human-tw&lt;/a&gt; is an OpenCode plugin port of Raymond Hou&#39;s &lt;a rel=&quot;external&quot; href=&quot;https://github.com/Raymondhou0917/speak-human-tw&quot;&gt;speak-human-tw&lt;/a&gt; — a rewriting skill that removes AI-flavored phrasing, mainland-China vocabulary and half-width punctuation from Traditional Chinese copy, so the result reads like a person wrote it.&lt;/p&gt;</summary>
+        
+    </entry>
+</feed>

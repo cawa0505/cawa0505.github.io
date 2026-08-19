@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - OpenSlide</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/openslide/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-16T20:23:05+00:00</updated>
+    <id>https://cawa0505.github.io/tags/openslide/atom.xml</id>
+    <entry xml:lang="en">
+        <title>Making OpenSlide Usable by Code Agents with Four MCP Tools</title>
+        <published>2026-08-16T20:23:05+00:00</published>
+        <updated>2026-08-16T20:23:05+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/making-open-slide-usable-by-code-agents-with-four-mcp-tools/"/>
+        <id>https://cawa0505.github.io/making-open-slide-usable-by-code-agents-with-four-mcp-tools/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/making-open-slide-usable-by-code-agents-with-four-mcp-tools/">&lt;p&gt;OpenSlide already had the hard part: a slide engine, a React authoring model, a CLI, and static builds. What it lacked was a clean boundary for code agents.&lt;/p&gt;
+&lt;p&gt;A human can answer an overwrite prompt, watch terminal output, and decide what command to run next. An agent works better with named arguments, validation, and one structured response per operation. The new OpenSlide MCP server adds that boundary without creating a second slide engine.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/open-slide-mcp-demo.gif&quot; alt=&quot;OpenSlide MCP stdio demo&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;The recording above shows the real end-to-end flow: the five-page brief, the agent-authored slide source, and &lt;code&gt;open_slide_build&lt;/code&gt; resolving the output directory — all through a real MCP client over stdio.&lt;/p&gt;
+&lt;h2 id=&quot;the-boundary-was-the-missing-piece&quot;&gt;The boundary was the missing piece&lt;/h2&gt;
+&lt;p&gt;The implementation is intentionally thin:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;code agent&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    │ MCP over stdio&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;@open-slide/mcp&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    │ validated function calls&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;@open-slide/cli + @open-slide/core/cli&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The MCP package uses the official TypeScript MCP SDK and Zod. Each handler validates its input, delegates to existing OpenSlide code, and returns JSON as MCP text content. Build logic, workspace scaffolding, skill synchronization, and HTML generation remain owned by the existing CLI packages.&lt;/p&gt;
+&lt;p&gt;That matters because duplicating those operations inside an MCP-specific implementation would create two behaviors to maintain. A thin adapter keeps the protocol boundary new while leaving the slide engine alone.&lt;/p&gt;
+&lt;h2 id=&quot;four-finite-tools&quot;&gt;Four finite tools&lt;/h2&gt;
+&lt;p&gt;The server exposes four operations:&lt;/p&gt;
+&lt;h3 id=&quot;open-slide-init&quot;&gt;&lt;code&gt;open_slide_init&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;Creates a workspace. Its arguments cover the decisions that would otherwise require interactive terminal input:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;dir, force, name, install, git, packageManager&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The result reports the resolved workspace directory.&lt;/p&gt;
+&lt;h3 id=&quot;open-slide-build&quot;&gt;&lt;code&gt;open_slide_build&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;Builds an existing workspace into a static SPA. It accepts the workspace directory and an optional output directory, then reports the resolved output path.&lt;/p&gt;
+&lt;h3 id=&quot;open-slide-export-html&quot;&gt;&lt;code&gt;open_slide_export_html&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;Builds the workspace and attempts to produce one HTML file. It accepts the workspace directory and an optional output filename.&lt;/p&gt;
+&lt;h3 id=&quot;open-slide-sync-skills&quot;&gt;&lt;code&gt;open_slide_sync_skills&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;Synchronizes OpenSlide&#39;s bundled agent skills into the workspace. With &lt;code&gt;dryRun: true&lt;/code&gt;, it reports drift without writing files. The implementation also preserves the existing symlink-first behavior and copy fallback.&lt;/p&gt;
+&lt;p&gt;These are deliberately finite operations. Long-running &lt;code&gt;dev&lt;/code&gt; and &lt;code&gt;preview&lt;/code&gt; sessions are not MCP tools. They do not fit the same request-response lifecycle and remain normal CLI commands.&lt;/p&gt;
+&lt;h2 id=&quot;dogfooding-the-workflow&quot;&gt;Dogfooding the workflow&lt;/h2&gt;
+&lt;p&gt;The deck below was made through the same path described here:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;open_slide_init&lt;/code&gt; created an isolated workspace.&lt;/li&gt;
+&lt;li&gt;The agent replaced the generated sample with a five-page React deck about the MCP server.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;open_slide_build&lt;/code&gt; compiled the workspace.&lt;/li&gt;
+&lt;li&gt;The resulting static SPA was copied into this Zola site&#39;s &lt;code&gt;static/&lt;/code&gt; tree.&lt;/li&gt;
+&lt;li&gt;This article embeds that real output rather than a screenshot of it.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;div style=&quot;position:relative;width:100%;aspect-ratio:16/9;margin:2rem 0;overflow:hidden;border:1px solid #444;border-radius:8px;background:#0b0d10&quot;&gt;
+  &lt;iframe src=&quot;/open-slide-mcp-demo/&quot; title=&quot;OpenSlide MCP for code agents&quot; loading=&quot;lazy&quot; allowfullscreen style=&quot;position:absolute;inset:0;width:100%;height:100%;border:0&quot;&gt;&lt;/iframe&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;a href=&quot;/open-slide-mcp-demo/&quot;&gt;Open the interactive deck in a separate tab&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Use the left and right arrow keys inside the deck to move between its five pages.&lt;/p&gt;
+&lt;h2 id=&quot;what-the-demo-found&quot;&gt;What the demo found&lt;/h2&gt;
+&lt;p&gt;Dogfooding exposed a real limitation in &lt;code&gt;open_slide_export_html&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;The exporter sets Vite&#39;s asset inline limit high enough to inline normal emitted assets, then replaces the entry JavaScript and CSS references in &lt;code&gt;index.html&lt;/code&gt;. Slide decks, however, are loaded as dynamic JavaScript chunks. The exported HTML did not contain the chunk for this deck, so calling the file self-contained would be inaccurate.&lt;/p&gt;
+&lt;p&gt;The embedded artifact therefore uses &lt;code&gt;open_slide_build&lt;/code&gt;, with a dedicated base path, instead of pretending the single-file export worked. The build output contains the entry bundle, CSS, fonts, and the deck&#39;s dynamic chunk under one static directory.&lt;/p&gt;
+&lt;p&gt;This is exactly why a real end-to-end artifact is more useful than a tool-registration test. The MCP calls worked, the build worked, and the final embed still revealed a packaging bug at the delivery boundary.&lt;/p&gt;
+&lt;h2 id=&quot;what-mcp-improves-and-what-it-does-not&quot;&gt;What MCP improves—and what it does not&lt;/h2&gt;
+&lt;p&gt;MCP removes terminal ambiguity for agents:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;no TTY prompt parsing for workspace creation;&lt;/li&gt;
+&lt;li&gt;explicit, validated arguments;&lt;/li&gt;
+&lt;li&gt;stable structured responses;&lt;/li&gt;
+&lt;li&gt;direct access to existing build and synchronization operations;&lt;/li&gt;
+&lt;li&gt;no duplicated slide engine.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;It does not remove OpenSlide&#39;s runtime requirements. The server still needs Node.js 18 or newer and the OpenSlide packages. A static build still needs to be hosted somewhere. Large assets still increase output size. Interactive development remains a CLI workflow.&lt;/p&gt;
+&lt;p&gt;The result is small on purpose: four tools, one stdio transport, and delegation to code that already existed. That is enough for an agent to create a workspace, author a deck, build it, and hand a deployable artifact to the next step.&lt;/p&gt;
+&lt;h2 id=&quot;sources&quot;&gt;Sources&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/open-slide&quot;&gt;OpenSlide repository&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/open-slide/commit/7c1be9b4db4b51f17c7fbfb4db272461a0676d68&quot;&gt;MCP tools implementation&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/open-slide/commit/de7a5aa8752bc59d8b1b57049e619a638613182c&quot;&gt;Symlink entry-point fix&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+        
+    </entry>
+</feed>

@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - plugin-system</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/plugin-system/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-09T04:55:00+08:00</updated>
+    <id>https://cawa0505.github.io/tags/plugin-system/atom.xml</id>
+    <entry xml:lang="en">
+        <title>Graphify Plugin Architecture Roadmap</title>
+        <published>2026-08-09T04:55:00+08:00</published>
+        <updated>2026-08-09T04:55:00+08:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/graphify-plugin-architecture-roadmap/"/>
+        <id>https://cawa0505.github.io/graphify-plugin-architecture-roadmap/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/graphify-plugin-architecture-roadmap/">&lt;h2 id=&quot;overview&quot;&gt;Overview&lt;/h2&gt;
+&lt;p&gt;Graphify&#39;s plugin architecture follows a strict two-layer separation: &lt;strong&gt;Layer 1&lt;/strong&gt; (embedded v1 traits) is implemented, while &lt;strong&gt;Layer 2&lt;/strong&gt; (external SDK) remains a roadmap for third-party ecosystem development. This design keeps the core contract separate from the external plugin protocol while maintaining a clear evolution path.&lt;/p&gt;
+&lt;h2 id=&quot;implemented-embedded-v1-plugin-layer&quot;&gt;Implemented: Embedded v1 Plugin Layer&lt;/h2&gt;
+&lt;h3 id=&quot;core-contract&quot;&gt;Core Contract&lt;/h3&gt;
+&lt;p&gt;The v1 embedded plugin contract (&lt;code&gt;graphify-core/src/plugin.rs&lt;/code&gt;) defines a dependency-free trait using only &lt;code&gt;std&lt;/code&gt;. All embedded plugins implement:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;get_id(&amp;amp;self) -&amp;gt; &amp;amp;str&lt;/code&gt; — Unique plugin identifier (e.g., &lt;code&gt;&quot;graphify-plugin-handoff&quot;&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;bind(&amp;amp;mut self, ctx: WorkspaceContext)&lt;/code&gt; — Workspace context binding&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;get_workspace_key(&amp;amp;self) -&amp;gt; &amp;amp;str&lt;/code&gt; — Returns bound workspace key or empty string&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;sync_toon(&amp;amp;mut self, opt_toon: Option&amp;lt;Vec&amp;lt;u8&amp;gt;&amp;gt;) -&amp;gt; Vec&amp;lt;u8&amp;gt;&lt;/code&gt; — Passive sync (consumes .toon) or proactive sync (produces output)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;on_graph_updated(&amp;amp;mut self, _event: &amp;amp;GraphUpdateEvent)&lt;/code&gt; — Default no-op hook&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;workspace-identity&quot;&gt;Workspace Identity&lt;/h3&gt;
+&lt;p&gt;&lt;code&gt;WorkspaceContext&lt;/code&gt; provides routing identity with:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;workspace_key&lt;/code&gt; — Deterministic hash of workspace root path&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;workspace_name&lt;/code&gt; — Human-readable workspace identifier&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;root_path&lt;/code&gt; — Absolute filesystem root&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;timestamp&lt;/code&gt; — Unix epoch seconds at creation&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;event-system&quot;&gt;Event System&lt;/h3&gt;
+&lt;p&gt;&lt;code&gt;GraphUpdateEvent&lt;/code&gt; carries graph changes with:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;workspace_key&lt;/code&gt; — Routing key&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;modified_nodes&lt;/code&gt; — Affected node identifiers&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;event&lt;/code&gt; — Trigger kind: &lt;code&gt;Indexed&lt;/code&gt;, &lt;code&gt;Extracted&lt;/code&gt;, or &lt;code&gt;Manual&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;plugin-host&quot;&gt;Plugin Host&lt;/h3&gt;
+&lt;p&gt;&lt;code&gt;graphify-cli/src/plugin_host.rs&lt;/code&gt; manages bound plugins:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Registration via &lt;code&gt;register()&lt;/code&gt; method&lt;/li&gt;
+&lt;li&gt;Broadcast of &lt;code&gt;GraphUpdateEvent&lt;/code&gt; to all plugins&lt;/li&gt;
+&lt;li&gt;Panic isolation via &lt;code&gt;catch_unwind&lt;/code&gt; — failing plugins don&#39;t interrupt others&lt;/li&gt;
+&lt;li&gt;No dynamic loading in v1&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;technical-constraints&quot;&gt;Technical Constraints&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Zero external dependencies in core plugin contract&lt;/li&gt;
+&lt;li&gt;Synchronous execution only&lt;/li&gt;
+&lt;li&gt;Workspace key routing ensures deterministic plugin isolation&lt;/li&gt;
+&lt;li&gt;Default hook implementation maintains backward compatibility&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;in-development-review-pipeline&quot;&gt;In Development: Review Pipeline&lt;/h2&gt;
+&lt;h3 id=&quot;graphify-plugin-review&quot;&gt;graphify-plugin-review&lt;/h3&gt;
+&lt;p&gt;The review plugin implements topology-aware code review:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Git diff extraction&lt;/strong&gt; — Identifies modified files and symbols&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;BFS blast radius trace&lt;/strong&gt; — Calculates upward/downward impact chains&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;TOON subgraph generation&lt;/strong&gt; — Creates blast radius sub-graphs&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;AI semantic review&lt;/strong&gt; — Feeds subgraphs to AI reviewers&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3 id=&quot;workflow&quot;&gt;Workflow&lt;/h3&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Git Diff → Modified Symbols → Graphify BFS Trace → Blast Radius Sub-graph (.toon) → AI Code Reviewer Prompt&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;h3 id=&quot;current-state&quot;&gt;Current State&lt;/h3&gt;
+&lt;p&gt;The plugin exists but the full semantic review flow (Git diff → symbols → topology → TOON → semantic review) remains in development. The plugin is bound to workspaces via the v1 trait and receives graph-update events through the PluginHost.&lt;/p&gt;
+&lt;h2 id=&quot;planned-external-mcp-native-layer&quot;&gt;Planned: External MCP-Native Layer&lt;/h2&gt;
+&lt;h3 id=&quot;two-distinct-layers&quot;&gt;Two Distinct Layers&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;External Layer&lt;/strong&gt; (roadmap) vs &lt;strong&gt;Embedded Layer&lt;/strong&gt; (implemented):&lt;/p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Aspect&lt;/th&gt;&lt;th&gt;Embedded (v1)&lt;/th&gt;&lt;th&gt;External (roadmap)&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;Location&lt;/td&gt;&lt;td&gt;In-process Rust crate&lt;/td&gt;&lt;td&gt;Subprocess spawned by Graphify Core&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Language&lt;/td&gt;&lt;td&gt;Rust only&lt;/td&gt;&lt;td&gt;Any language&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Transport&lt;/td&gt;&lt;td&gt;Direct method calls&lt;/td&gt;&lt;td&gt;Stdio + JSON-RPC (MCP-native)&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Use case&lt;/td&gt;&lt;td&gt;Core-internal extension&lt;/td&gt;&lt;td&gt;Community third-party plugins&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;h3 id=&quot;planned-components&quot;&gt;Planned Components&lt;/h3&gt;
+&lt;h4 id=&quot;1-mcp-native-plugin-gateway&quot;&gt;1. MCP-Native Plugin Gateway&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;graphify-mcp unified gateway&lt;/strong&gt; — Single MCP server for external plugins&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Stdio + JSON-RPC transport&lt;/strong&gt; — Language-agnostic plugin interface&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Tool registration&lt;/strong&gt; — External plugins expose tools through MCP&#39;s &lt;code&gt;tools/list&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Mode 1 (Unified Gateway)&lt;/strong&gt; — graphify-mcp acts as MCP client, spawns plugins, aggregates tools&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;2-polyglot-sdks&quot;&gt;2. Polyglot SDKs&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;TypeScript/Node.js&lt;/strong&gt; — Primary target for OpenCode plugins and editor integrations&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Python&lt;/strong&gt; — For &lt;code&gt;graphify-plugin-opendoc&lt;/code&gt; (vector retrieval, LangChain/LlamaIndex)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Rust&lt;/strong&gt; — Native speed, internal plugins, adapter reference implementation&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;PHP&lt;/strong&gt; — Composer-managed PHP plugin SDK (deferred)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;3-plugin-lifecycle-management&quot;&gt;3. Plugin Lifecycle Management&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Lazy spawn&lt;/strong&gt; vs &lt;strong&gt;eager startup&lt;/strong&gt; configuration&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Crash/restart handling&lt;/strong&gt; — Plugin lifecycle monitoring&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Protocol versioning&lt;/strong&gt; — Semver for JSON-RPC schema&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Tool prefix strategy&lt;/strong&gt; — &lt;code&gt;graphify_&amp;lt;plugin&amp;gt;_&amp;lt;tool&amp;gt;&lt;/code&gt; naming&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;technical-roadmap&quot;&gt;Technical Roadmap&lt;/h3&gt;
+&lt;h4 id=&quot;phase-1-core-interface&quot;&gt;Phase 1: Core Interface&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;Finalize external protocol specification&lt;/li&gt;
+&lt;li&gt;Implement MCPPluginAdapter bridge (if unification desired)&lt;/li&gt;
+&lt;li&gt;Define JSON-RPC method contracts independent of v1 trait&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;phase-2-review-handoff&quot;&gt;Phase 2: Review &amp;amp; Handoff&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;Complete graphify-plugin-review pipeline&lt;/li&gt;
+&lt;li&gt;Implement graphify-plugin-handoff with .toon sub-graph export&lt;/li&gt;
+&lt;li&gt;Add graphify-plugin-opendoc vector integration&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;phase-3-external-sdk-deferred&quot;&gt;Phase 3: External SDK (Deferred)&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;Ship TypeScript/Node.js SDK first&lt;/li&gt;
+&lt;li&gt;Implement Python SDK for document processing&lt;/li&gt;
+&lt;li&gt;Add Rust adapter for external plugin compatibility&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;dogfood-cawa0505-github-io-editorial-workflow&quot;&gt;Dogfood: cawa0505.github.io Editorial Workflow&lt;/h2&gt;
+&lt;p&gt;This cawa0505.github.io site can leverage Graphify topology to supply bounded code context for articles. The editorial workflow would:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Extract workspace topology&lt;/strong&gt; — Use Graphify to analyze repository structure&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Generate bounded context&lt;/strong&gt; — Create TOON subgraphs representing relevant code sections&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Supply to AI reviewers&lt;/strong&gt; — Feed topology to semantic review pipeline for technical accuracy&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Maintain manual verification&lt;/strong&gt; — Facts remain manually verified, with performance/model benchmarks separate from executable milestones&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3 id=&quot;example-integration&quot;&gt;Example Integration&lt;/h3&gt;
+&lt;p&gt;When publishing architecture articles, the workflow could:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Extract the target repository&#39;s graph using &lt;code&gt;graphify extract&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Query specific modules or components using &lt;code&gt;graphify query&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Generate blast radius sub-graphs for impacted areas&lt;/li&gt;
+&lt;li&gt;Supply bounded context to AI for technical review&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;thesis-structural-facts-vs-semantic-interpretation&quot;&gt;Thesis: Structural Facts vs Semantic Interpretation&lt;/h2&gt;
+&lt;p&gt;Graphify computes explicit &lt;strong&gt;structural relationships&lt;/strong&gt; that should not be left to guesswork:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Symbol and file relationships&lt;/li&gt;
+&lt;li&gt;Call graph and impact-radius traversals&lt;/li&gt;
+&lt;li&gt;Deterministic workspace-key derivation from the workspace root&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;LLMs later interpret &lt;strong&gt;bounded semantic context&lt;/strong&gt; derived from these facts. Performance/model benchmarks remain separate from executable milestones, ensuring factual accuracy precedes semantic interpretation.&lt;/p&gt;
+&lt;h2 id=&quot;external-links&quot;&gt;External Links&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;GraphifyRust GitHub&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust/blob/main/docs/plugin_system.md&quot;&gt;Plugin System Documentation&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust/blob/main/docs/plugin-sdk-roadmap.md&quot;&gt;Plugin SDK Roadmap&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Graphify&#39;s plugin architecture maintains a clean separation between implemented embedded v1 traits and planned external MCP-native layer. The current implementation provides a solid foundation for internal extensions while leaving the external plugin ecosystem as a deliberate roadmap item. This approach ensures core stability while enabling future polyglot plugin development.&lt;/p&gt;
+&lt;p&gt;The system demonstrates that &lt;strong&gt;Rust computes structural facts that should not be guessed&lt;/strong&gt;; LLMs later interpret bounded semantic context. This philosophy ensures factual accuracy while enabling powerful AI-assisted workflows.&lt;/p&gt;
+</content>
+        
+    </entry>
+</feed>

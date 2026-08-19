@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - ai-infrastructure</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/ai-infrastructure/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-09T18:44:03+08:00</updated>
+    <id>https://cawa0505.github.io/tags/ai-infrastructure/atom.xml</id>
+    <entry xml:lang="en">
+        <title>Relay: Cross-session State Handoff as a Graphify Plugin</title>
+        <published>2026-08-09T18:44:03+08:00</published>
+        <updated>2026-08-09T18:44:03+08:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/graphify-plugin-handoff-cross-session-state/"/>
+        <id>https://cawa0505.github.io/graphify-plugin-handoff-cross-session-state/</id>
+        
+        <summary type="html">&lt;p&gt;The repository originally published as &lt;a href=&quot;/code-relay-mcp-cross-session-state-handoff/&quot;&gt;code-relay-mcp&lt;/a&gt; has been renamed to &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-plugin-handoff&quot;&gt;graphify-plugin-handoff&lt;/a&gt; and re-architected from a standalone Rust MCP server into a Graphify &lt;strong&gt;embedded plugin&lt;/strong&gt;. This article documents the actual implementation.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Dogfooding: Graphify Extracts Its Own Codebase</title>
+        <published>2026-08-06T00:03:00+00:00</published>
+        <updated>2026-08-06T00:03:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/dogfooding-graphify-extracts-its-own-codebase/"/>
+        <id>https://cawa0505.github.io/dogfooding-graphify-extracts-its-own-codebase/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/dogfooding-graphify-extracts-its-own-codebase/">&lt;p&gt;The best test of a codebase-graph tool is its own codebase. &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify&lt;/a&gt; doesn&#39;t just ship graphs for other repos — we run it on itself in CI and in this article. Measured just now, on the project&#39;s own source:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;$ graphify extract .&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Successfully extracted graph to graphify-out/graph.toon (nodes: 225, edges: 750)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Elapsed (wall clock): 0.25 s   (second run: 0.12 s)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Maximum resident set size: ~17 MB&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;225 nodes, 750 edges, one quarter of a second, less RAM than a browser tab. That&#39;s the whole promise of the Rust rewrite (&lt;a href=&quot;/26x-faster-rewriting-the-codebase-grapher-in-rust/&quot;&gt;part 2&lt;/a&gt;) in one command line.&lt;/p&gt;
+&lt;h2 id=&quot;what-the-graph-looks-like&quot;&gt;What the graph looks like&lt;/h2&gt;
+&lt;p&gt;The workspace is split into focused crates, and the graph shows it:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;graphify-core&lt;/strong&gt; — AST parsing and the graph data model&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-llm&lt;/strong&gt; — the semantic pass and rate-limit handling (&lt;code&gt;AutoRotatePipeline&lt;/code&gt; lives at &lt;code&gt;graphify-llm/src/pipeline.rs:9&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-cli&lt;/strong&gt; — &lt;code&gt;extract&lt;/code&gt;, &lt;code&gt;query&lt;/code&gt;, &lt;code&gt;path&lt;/code&gt;, &lt;code&gt;index&lt;/code&gt;, &lt;code&gt;tui&lt;/code&gt;, &lt;code&gt;install-skill&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-mcp&lt;/strong&gt; — the &lt;a rel=&quot;external&quot; href=&quot;https://modelcontextprotocol.io&quot;&gt;Model Context Protocol&lt;/a&gt; server so assistants query the graph directly&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-out&lt;/strong&gt; — the &lt;code&gt;.toon&lt;/code&gt; format crate&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;querying-it&quot;&gt;Querying it&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;query&lt;/code&gt; and &lt;code&gt;path&lt;/code&gt; work on the extracted graph, so an assistant (or a human) can ask structural questions without reading the whole repo:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;$ graphify query &amp;quot;./graphify-llm/src/pipeline.rs:struct:AutoRotatePipeline&amp;quot; --depth 1&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;...returns the node with its neighbors — who calls what, where the struct starts (&lt;code&gt;pipeline.rs:9&lt;/code&gt;), what module it belongs to. &lt;code&gt;graphify path A B&lt;/code&gt; answers &quot;how do these two subsystems connect?&quot;&lt;/p&gt;
+&lt;h2 id=&quot;why-dogfooding-matters&quot;&gt;Why dogfooding matters&lt;/h2&gt;
+&lt;p&gt;Three things running graphify on itself catches, that manual docs would miss:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Extraction must be fast enough to feel instant&lt;/strong&gt; — the TUI re-extracts live as you navigate.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;The MCP server must actually answer&lt;/strong&gt; — we use it while developing, so a broken query path is a broken day.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;The graph must match reality&lt;/strong&gt; — the crate split above is verified by the graph, not by prose.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Graphify is open source. If you build AI agents that work across codebases, this is what they see when they look at a repo.&lt;/p&gt;
+&lt;p&gt;→ &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify on GitHub&lt;/a&gt;&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>OpenDocuments: A Self-Hosted RAG Platform That Fits in a Single Binary</title>
+        <published>2026-08-06T00:00:00+00:00</published>
+        <updated>2026-08-06T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/opendocuments-self-hosted-rag-single-binary/"/>
+        <id>https://cawa0505.github.io/opendocuments-self-hosted-rag-single-binary/</id>
+        
+        <summary type="html">&lt;p&gt;OpenDocuments is a self-hosted RAG platform: point it at a folder of PDFs, DOCX, XLSX, Markdown files or web pages, and it builds an AI-searchable knowledge base with cited answers. It ships as one Rust binary that embeds both the Axum API server and the React WebUI via &lt;code&gt;rust-embed&lt;/code&gt; — no Node runtime, no external assets, nothing to install besides the executable.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Rate Limits Are Runtime Reality: Building 429 Auto-Rotation into a Codebase Grapher</title>
+        <published>2026-08-04T00:01:00+00:00</published>
+        <updated>2026-08-04T00:01:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/rate-limits-429-auto-rotation/"/>
+        <id>https://cawa0505.github.io/rate-limits-429-auto-rotation/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/rate-limits-429-auto-rotation/">&lt;p&gt;AI agents can&#39;t navigate a codebase they can&#39;t see. Give an agent a plain file tree and it will guess; give it a semantic graph of symbols, imports and call relationships, and it can plan before it reads. That&#39;s the problem &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify&lt;/a&gt; exists to solve: turn a repository into a structural graph an LLM can reason over.&lt;/p&gt;
+&lt;p&gt;This post is the first of three about how it was built — reliability first, performance second, dogfooding third.&lt;/p&gt;
+&lt;h2 id=&quot;phase-1-the-python-prototype&quot;&gt;Phase 1: the Python prototype&lt;/h2&gt;
+&lt;p&gt;The first version was a Python toolchain: parse source into AST nodes, run a semantic pass over the graph with an LLM, emit a graph file the assistant consumes. It worked. Then it hit production reality: cloud LLM rate limits.&lt;/p&gt;
+&lt;p&gt;Calling a public API at any concurrency, 429s stop being an exception and become a steady-state signal. The naive fix — retry with sleep — makes the pipeline &lt;em&gt;predictable&lt;/em&gt; in the worst way: every key exhausted means a serial pause, and every pause adds seconds to an interactive flow.&lt;/p&gt;
+&lt;h2 id=&quot;429-auto-rotation-the-design&quot;&gt;429 auto-rotation: the design&lt;/h2&gt;
+&lt;p&gt;The Python version&#39;s answer was a rotation layer, later carried into the Rust rewrite as &lt;code&gt;AutoRotatePipeline&lt;/code&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Multi-key rotation&lt;/strong&gt; — keys are pooled and picked with an atomic modulo counter. Rotation is O(1), thread-safe, and never blocks on a mutex around the choice itself.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Zero-sleep retry&lt;/strong&gt; — on a 429 the pipeline rotates to the next key immediately instead of sleeping. The cost of a busy rotate is far lower than a serial sleep, and with enough keys in the pool the pipeline keeps moving.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Provider failover&lt;/strong&gt; — the chain degrades deliberately: cloud keys first, then a local fallback (&lt;a rel=&quot;external&quot; href=&quot;https://ollama.com&quot;&gt;Ollama&lt;/a&gt; with a small local model). The pipeline never hard-stops on a cloud outage; it degrades to slower local inference instead of failing.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The lesson that shaped the whole project: &lt;strong&gt;rate limits are not an edge case, they are a runtime condition.&lt;/strong&gt; Any tool that hits LLM APIs and doesn&#39;t model rotation, failover and degradation as first-class concerns will fall over exactly when a user needs it.&lt;/p&gt;
+&lt;p&gt;Phase 1 made graphify &lt;em&gt;reliable&lt;/em&gt;. Phase 2, the Rust rewrite, made it &lt;em&gt;fast&lt;/em&gt; — &lt;a href=&quot;/26x-faster-rewriting-the-codebase-grapher-in-rust/&quot;&gt;read it here&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;→ &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify on GitHub&lt;/a&gt;&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>opencode-speak-human-tw: A Plugin That Strips the AI Smell Out of Writing</title>
+        <published>2026-08-03T00:00:00+00:00</published>
+        <updated>2026-08-03T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/opencode-speak-human-tw-de-ai-plugin/"/>
+        <id>https://cawa0505.github.io/opencode-speak-human-tw-de-ai-plugin/</id>
+        
+        <summary type="html">&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/opencode-speak-human-tw&quot;&gt;opencode-speak-human-tw&lt;/a&gt; is an OpenCode plugin port of Raymond Hou&#39;s &lt;a rel=&quot;external&quot; href=&quot;https://github.com/Raymondhou0917/speak-human-tw&quot;&gt;speak-human-tw&lt;/a&gt; — a rewriting skill that removes AI-flavored phrasing, mainland-China vocabulary and half-width punctuation from Traditional Chinese copy, so the result reads like a person wrote it.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>draco: A Firecrawl Alternative Without the Browser Boot</title>
+        <published>2026-08-02T00:00:00+00:00</published>
+        <updated>2026-08-02T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/draco-firecrawl-alternative-without-browser-boot/"/>
+        <id>https://cawa0505.github.io/draco-firecrawl-alternative-without-browser-boot/</id>
+        
+        <summary type="html">&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/draco&quot;&gt;draco&lt;/a&gt; is a native-Rust web scraper designed as an MCP server. Point it at a URL and get clean Markdown + metadata back — no Node, no headless-Chrome fleet, no per-request browser boot. It is positioned as the lightweight half of a scrape stack: use draco for content, structured data and DOM interaction; escalate to a real browser only when the task needs layout, screenshots or downloads.&lt;/p&gt;
+&lt;p&gt;It is a fork of &lt;a rel=&quot;external&quot; href=&quot;https://github.com/0xchasercat/draco&quot;&gt;0xchasercat/draco&lt;/a&gt; — the MCP ergonomics layer and anti-blocking engine described below are fork work, layered on the upstream core. We built what we needed for our own agent workflows and share it back; the upstream author gets full credit for the base.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>ax-mcp: A Remote Scraping MCP Server over Streamable HTTP</title>
+        <published>2026-08-01T00:00:00+00:00</published>
+        <updated>2026-08-01T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/ax-mcp-remote-scraping-over-streamable-http/"/>
+        <id>https://cawa0505.github.io/ax-mcp-remote-scraping-over-streamable-http/</id>
+        
+        <summary type="html">&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/ax-mcp&quot;&gt;ax-mcp&lt;/a&gt; is a small Node.js MCP server that wraps &lt;a rel=&quot;external&quot; href=&quot;https://github.com/yusukebe/ax&quot;&gt;&lt;code&gt;ax&lt;/code&gt;&lt;/a&gt; — &quot;curl for the AI era&quot; — and exposes it as a &lt;strong&gt;remote&lt;/strong&gt; MCP endpoint. The point is transport: instead of SSE long-connections that die across reverse proxies, the server is bridged through &lt;code&gt;supergateway&lt;/code&gt; to Streamable HTTP (&lt;code&gt;POST /mcp&lt;/code&gt;), the native shape of OpenCode&#39;s &lt;code&gt;type: &quot;remote&quot;&lt;/code&gt;.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Code Relay MCP: Early Concept for Cross-Session State Handoff</title>
+        <published>2026-07-31T00:00:00+00:00</published>
+        <updated>2026-07-31T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/code-relay-mcp-cross-session-state-handoff/"/>
+        <id>https://cawa0505.github.io/code-relay-mcp-cross-session-state-handoff/</id>
+        
+        <summary type="html">&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Migration note&lt;/strong&gt;: The repository originally linked here as &lt;code&gt;code-relay-mcp&lt;/code&gt; has been renamed to &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-plugin-handoff&quot;&gt;graphify-plugin-handoff&lt;/a&gt; and re-architected as a Graphify embedded plugin rather than a standalone MCP server. This article is preserved as the early concept write-up. For the actual implementation, see &lt;a href=&quot;/graphify-plugin-handoff-cross-session-state/&quot;&gt;Relay: Cross-session State Handoff as a Graphify Plugin&lt;/a&gt;.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The original concept proposed a native-Rust MCP server that manages cross-session, cross-repository handoffs for coding agents. It was envisioned as the engine behind the code-relay workflow, replacing the old Node.js &lt;code&gt;@jimmyyen/opencode-code-relay-plugin&lt;/code&gt; while keeping 100% backward compatibility — existing workflows and prompts would keep working, just faster underneath.&lt;/p&gt;</summary>
+        
+    </entry>
+</feed>

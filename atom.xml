@@ -1,0 +1,1036 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-19T06:47:43+00:00</updated>
+    <id>https://cawa0505.github.io/atom.xml</id>
+    <entry xml:lang="en">
+        <title>Local LLM-as-a-Verifier on a 16GB ROCm GPU: Real Benchmark Data</title>
+        <published>2026-08-19T06:47:43+00:00</published>
+        <updated>2026-08-19T06:47:43+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/llm-as-a-verifier-benchmark-rocm-16gb/"/>
+        <id>https://cawa0505.github.io/llm-as-a-verifier-benchmark-rocm-16gb/</id>
+        
+        <summary type="html">&lt;p&gt;&lt;strong&gt;TL;DR:&lt;/strong&gt; I benchmarked the local LLM-as-a-Verifier setup running Qwen3.5-9B (Q4_K) on a single 16GB AMD GPU via ROCm. The verifier processes a code comparison in ~0.5–2s at 66% cache hit rate, correctly scoring valid code changes at 1.0 and invalid ones at 0.0–0.14. The 16GB card handles the 9B model comfortably, leaving headroom for other services.&lt;/p&gt;
+&lt;p&gt;This article is a follow-up to the &lt;a rel=&quot;external&quot; href=&quot;https://cawa0505.github.io/llm-as-a-verifier-local-ai-guard/&quot;&gt;architecture overview&lt;/a&gt; and the &lt;a rel=&quot;external&quot; href=&quot;https://cawa0505.github.io/packaging-llm-as-a-verifier-docker/&quot;&gt;Docker packaging guide&lt;/a&gt;. Those articles described the &lt;em&gt;what&lt;/em&gt; and &lt;em&gt;how&lt;/em&gt; — this one provides the measured &lt;em&gt;how well&lt;/em&gt;.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Poor Man&#39;s LLM-as-a-Verifier: 16GB GPU + ROCm for Zero-Cost Local Agent Guardrails</title>
+        <published>2026-08-19T05:55:10+00:00</published>
+        <updated>2026-08-19T05:55:10+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/llm-as-a-verifier-local-ai-guard/"/>
+        <id>https://cawa0505.github.io/llm-as-a-verifier-local-ai-guard/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/llm-as-a-verifier-local-ai-guard/">&lt;h1 id=&quot;poor-man-s-llm-as-a-verifier-16gb-gpu-rocm-for-zero-cost-local-agent-guardrails&quot;&gt;Poor Man&#39;s LLM-as-a-Verifier: 16GB GPU + ROCm for Zero-Cost Local Agent Guardrails&lt;/h1&gt;
+&lt;p&gt;&lt;strong&gt;TL;DR:&lt;/strong&gt; This article is for developers who don&#39;t want to burn money on cloud API bills and are afraid of autonomous coding agents blindly refactoring their codebase into oblivion. We&#39;ll build a local, zero-cost AI exoskeleton with a 16GB AMD GPU, Linux ROCm (HIP) acceleration, and a deterministic 2PC guard rail written in Rust — matching the spec of production-grade PRM (Process Reward Model) systems.&lt;/p&gt;
+&lt;h2 id=&quot;1-the-pain-agent-fever-meets-bill-shock-and-code-destruction&quot;&gt;1. The Pain: Agent Fever Meets Bill Shock and Code Destruction&lt;/h2&gt;
+&lt;p&gt;Autonomous coding agents (OpenCode, Claude Code, etc.) have fundamentally changed how we write software. But they come with two nightmares:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Token black hole &amp;amp; API bill shock&lt;/strong&gt;: To maintain code quality, agents need extensive self-reflection, Best-of-N comparisons, and long-chain repair. A few rounds of dialogue later, your cloud API bill is through the roof.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Non-determinism&lt;/strong&gt;: An agent without guardrails is a race car without a steering wheel — it might silently mutate global interfaces, corrupt your DB schema, or hallucinate syntax errors.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;The fix&lt;/strong&gt;: We need a Verifier (process supervisor). But production papers routinely use A100 clusters with vLLM pre-allocating tens of GB of VRAM — costs most developers can&#39;t justify. We need a poor man&#39;s Process Supervision system that runs smoothly on a single 16GB consumer GPU.&lt;/p&gt;
+&lt;h2 id=&quot;2-hardware-driver-layer-why-16gb-amd-rocm-hip&quot;&gt;2. Hardware &amp;amp; Driver Layer: Why 16GB AMD + ROCm (HIP)?&lt;/h2&gt;
+&lt;p&gt;On a Homelab / Linux (CachyOS) setup, pairing a Radeon RX 9060 XT 16GB with the ROCm backend is the sweet spot for cost-performance:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;HIP matrix acceleration &amp;amp; VRAM throughput&lt;/strong&gt;: ROCm&#39;s native HIP acceleration lets 16GB VRAM comfortably handle Qwen3.5-9B with mmproj (code semantics + multimodal vision).&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Escaping the vLLM VRAM trap&lt;/strong&gt;: vLLM&#39;s 90% pre-allocation policy is a disaster on a single multi-tasking machine. Switch to the ROCm build of llama-server (GGUF quantization). Model weights consume only 5–9 GB of VRAM, leaving room for dynamic KV cache allocation while the host runs other services.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Zero API cost&lt;/strong&gt;: Triggering 10,000 &lt;code&gt;/v1/directed&lt;/code&gt; scoring calls through the 2PC (two-phase commit) gate costs nothing more than pocket change in electricity. Token anxiety gone.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;3-architectural-philosophy-the-tri-layer-deterministic-harness&quot;&gt;3. Architectural Philosophy: The Tri-Layer Deterministic Harness&lt;/h2&gt;
+&lt;p&gt;The core idea: &lt;strong&gt;demote the LLM from a system-write-privileged executor to an intern who must submit legitimate proposals.&lt;/strong&gt;&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;┌────────────────────────────────────────────────────────────────────────┐&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│ omo-slim / OpenCode Orchestrator                                       │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;└───────────────────────────────────┬────────────────────────────────────┘&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;                                    │ 1. 2PC Proposal (Diff / AST Delta)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;                                    ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;┌────────────────────────────────────────────────────────────────────────┐&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│ guardrail-mcp (Deterministic 2PC Gateway)                              │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│                                                                        │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│  Track 1: Hard Guard (Rust / graphify-core AST structural check)       │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│  └── Millisecond short-circuit — syntax errors / violations rejected   │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│      instantly (0 VRAM usage)                                          │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│                                                                        │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│  Track 2: Soft Guard (Local multimodal semantic review)                │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;└───────────────────────────────────┬────────────────────────────────────┘&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;                                    │ 2. POST /v1/directed&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;                                    ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;┌────────────────────────────────────────────────────────────────────────┐&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│ docker-llm-as-a-verifier (Local ROCm Backend / llama-server)           │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│ └── Qwen3.5-9B with mmproj (GGUF)                   │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;└────────────────────────────────────────────────────────────────────────┘&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;graphify (AST &amp;amp; Context Manager)&lt;/strong&gt;: Written in Rust. Handles code topology analysis and dynamic token pruning — feeds only the minimal sub-graph with the highest information density to the agent.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;guardrail-mcp (State Machine &amp;amp; 2PC Gateway)&lt;/strong&gt;: An independent MCP guard. Enforces two-phase commit (Phase 1: Proposal → Phase 2: Guard Check → Issue commit_token).&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;docker-llm-as-a-verifier (PRM Evaluation Server)&lt;/strong&gt;: A Docker-packaged local review container. Accelerated by ROCm, providing fine-grained scoring.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;4-implementation-breakdown-rest-api-spec-aligned-with-production-prm&quot;&gt;4. Implementation Breakdown: REST API Spec Aligned with Production PRM&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;docker-llm-as-a-verifier&lt;/code&gt; exposes 7 complete REST API endpoints implementing high-level Process Supervision primitives:&lt;/p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Endpoint&lt;/th&gt;&lt;th&gt;Method&lt;/th&gt;&lt;th&gt;2PC Use Case&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/directed&lt;/code&gt;&lt;/td&gt;&lt;td&gt;POST&lt;/td&gt;&lt;td&gt;&lt;strong&gt;[Core]&lt;/strong&gt; Given the original task, compare old code A vs fixed code B, return Preference Score and accepted flag&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/select&lt;/code&gt;&lt;/td&gt;&lt;td&gt;POST&lt;/td&gt;&lt;td&gt;&lt;strong&gt;[Best-of-N]&lt;/strong&gt; Pick the highest-scoring, safest AST change from N agent-generated proposals&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/track&lt;/code&gt;&lt;/td&gt;&lt;td&gt;POST&lt;/td&gt;&lt;td&gt;&lt;strong&gt;[Trajectory Monitor]&lt;/strong&gt; Evaluate progress after each action. Short-circuit if the agent is making things worse&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/compare&lt;/code&gt;&lt;/td&gt;&lt;td&gt;POST&lt;/td&gt;&lt;td&gt;Quick A/B Testing: pairwise scoring&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/score-pairs&lt;/code&gt;&lt;/td&gt;&lt;td&gt;POST&lt;/td&gt;&lt;td&gt;Batch regression testing and evaluation&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/health&lt;/code&gt;&lt;/td&gt;&lt;td&gt;GET&lt;/td&gt;&lt;td&gt;System health check&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/usage&lt;/code&gt;&lt;/td&gt;&lt;td&gt;GET&lt;/td&gt;&lt;td&gt;Local token accumulation statistics&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;h2 id=&quot;5-real-world-closure-from-proposal-interception-to-micro-patching&quot;&gt;5. Real-World Closure: From Proposal Interception to Micro-Patching&lt;/h2&gt;
+&lt;p&gt;When the agent proposes a code change with hidden risks, the defensive closure works like this:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Coder Agent submits a change proposal.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;guardrail-mcp&lt;/code&gt; triggers Track 1: &lt;code&gt;graphify-core&lt;/code&gt; scans and detects an interface discontinuity.&lt;/li&gt;
+&lt;li&gt;If Track 1 passes, Track 2 fires: HTTP POST to the Docker &lt;code&gt;/v1/directed&lt;/code&gt; endpoint (Qwen3.5-9B with mmproj).&lt;/li&gt;
+&lt;li&gt;Verifier returns REJECTED with this payload:&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;json&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;  &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;status&lt;/span&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt;REJECTED&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;  &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;reason&lt;/span&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt;Signature mismatch on UserRepositoryInterface&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;  &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;ast_node_id&lt;/span&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt;Node#402&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/li&gt;
+&lt;li&gt;The orchestrator captures &lt;code&gt;ast_node_id&lt;/code&gt; and instructs the agent to perform a local micro-patch targeting only &lt;code&gt;Node#402&lt;/code&gt; — no full-file re-reads!&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;&lt;strong&gt;Dual verification bonus&lt;/strong&gt;: UI changes can be further validated by Qwen3.5-9B with mmproj reviewing Playwright rendering screenshots (Visual Guard), ensuring no layout breakage or CSS regressions.&lt;/p&gt;
+&lt;h2 id=&quot;6-conclusion-take-control-and-compute-back-to-the-edge&quot;&gt;6. Conclusion: Take Control and Compute Back to the Edge&lt;/h2&gt;
+&lt;p&gt;You don&#39;t need a hundred-thousand-dollar A100 cluster. You don&#39;t need to pay monthly tribute to cloud API giants. With a Rust-based deterministic graph, a 2PC state-machine guard, and an AMD ROCm-powered local multimodal verifier, we&#39;ve built a fully private, zero-leakage AI exoskeleton with production-grade PRM capability — all on a sub-$500 consumer GPU.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Open-source repositories:&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;2PC guard gate: &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/guardrail-mcp&quot;&gt;github.com/cawa0505/guardrail-mcp&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Local verifier container: &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/docker-llm-as-a-verifier&quot;&gt;github.com/cawa0505/docker-llm-as-a-verifier&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Running LLM-as-a-Verifier Locally on a Low-Cost Setup</title>
+        <published>2026-08-18T21:37:36+00:00</published>
+        <updated>2026-08-18T21:37:36+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/packaging-llm-as-a-verifier-docker/"/>
+        <id>https://cawa0505.github.io/packaging-llm-as-a-verifier-docker/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/packaging-llm-as-a-verifier-docker/">&lt;p&gt;Running an LLM verifier does not have to start with an expensive hosted API or a dedicated inference cluster. I am working on a low-cost local implementation of &lt;a rel=&quot;external&quot; href=&quot;https://github.com/llm-as-a-verifier/llm-as-a-verifier&quot;&gt;LLM-as-a-Verifier&lt;/a&gt;, using a local model backend and Docker only to package the verifier service.&lt;/p&gt;
+&lt;p&gt;The goal is practical: make the paper&#39;s verification idea runnable on hardware that is already available, keep the model outside the container, and make the setup easy to test before spending more compute.&lt;/p&gt;
+&lt;p&gt;Large language models are often used to generate several candidate answers and then choose one with another model acting as a judge. That pattern is useful, but a single discrete judgment throws away much of the verifier model&#39;s uncertainty.&lt;/p&gt;
+&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/llm-as-a-verifier/llm-as-a-verifier&quot;&gt;LLM-as-a-Verifier&lt;/a&gt; takes a different approach. It reads token-level log probabilities for ordered score tokens and turns that distribution into a continuous reward. The reward can then drive best-of-N selection, progress tracking, or preference comparison.&lt;/p&gt;
+&lt;p&gt;I am packaging the project as a small Docker deployment in &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/docker-llm-as-a-verifier&quot;&gt;docker-llm-as-a-verifier&lt;/a&gt;. The repository is a deployment wrapper, not a reimplementation of the research method. The upstream paper and source repository remain the authority for the algorithm, experiments, and reported results.&lt;/p&gt;
+&lt;h2 id=&quot;the-deployment-boundary&quot;&gt;The deployment boundary&lt;/h2&gt;
+&lt;p&gt;The container does not serve a model. It installs the &lt;code&gt;llm-verifier&lt;/code&gt; package and exposes a thin HTTP service around it. The actual model runs behind an external OpenAI-compatible endpoint that must return token-level logprobs.&lt;/p&gt;
+&lt;p&gt;That boundary keeps the image small and makes the deployment useful with a low-cost local backend, including llama.cpp, vLLM, or SGLang. A compatible hosted API can work too, but it is not the point of this example: the intended path is local inference without a large cloud bill.&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;client&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  |&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  v&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Docker container :8010&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  |  /health&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  |  /v1/compare&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  |  /v1/select&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  v&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;OpenAI-compatible backend :/v1&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  |&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  v&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;verifier model with token logprobs&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The main configuration is deliberately small:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;dotenv&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;OPENAI_BASE_URL&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span&gt;http://host.docker.internal:8080/v1&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;MODEL_ALIAS&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span&gt;qwen3.5-9b&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;OPENAI_API_KEY&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span&gt;EMPTY&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;VERIFIER_PORT&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span&gt;8010&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;VERIFIER_MIN_SCORE&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span&gt;0.8&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;code&gt;OPENAI_BASE_URL&lt;/code&gt; is the important setting. The backend must support the logprob information that the verifier needs; an API that only returns final text is not enough for this deployment.&lt;/p&gt;
+&lt;h2 id=&quot;running-the-service&quot;&gt;Running the service&lt;/h2&gt;
+&lt;p&gt;After cloning the repository, copy the example environment file and set the backend URL:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;git&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; clone https://github.com/cawa0505/docker-llm-as-a-verifier.git&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;cd&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; docker-llm-as-a-verifier&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;cp&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; .env.example .env&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #6272A4;&quot;&gt;# Edit .env for your backend&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;docker&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; compose build&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;docker&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; compose up&lt;/span&gt;&lt;span style=&quot;color: #BD93F9;&quot;&gt; -d&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The default service port is &lt;code&gt;8010&lt;/code&gt;. The first check is intentionally boring:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;curl&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; http://localhost:8010/health&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The response reports the service status, configured model alias, and backend URL. This catches a container or configuration problem before sending a verification request.&lt;/p&gt;
+&lt;h2 id=&quot;what-the-wrapper-exposes&quot;&gt;What the wrapper exposes&lt;/h2&gt;
+&lt;p&gt;The service currently wraps two core operations:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;/v1/compare&lt;/code&gt; compares two candidates and returns their verifier rewards.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;/v1/select&lt;/code&gt; evaluates a candidate set and returns the selected candidate and ranking information.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The underlying Python library provides more capabilities, but those are not exposed by this Docker API yet. The current wrapper starts with the smallest useful surface for smoke tests and integration. The remaining endpoints are being implemented as the local deployment grows.&lt;/p&gt;
+&lt;p&gt;A deployment wrapper should make the upstream contract visible instead of hiding it. In this case, that means documenting the logprob requirement, the external model boundary, and the fact that the container is not the inference server.&lt;/p&gt;
+&lt;h2 id=&quot;api-roadmap&quot;&gt;API roadmap&lt;/h2&gt;
+&lt;p&gt;The next work is to expose more of the upstream library through the same HTTP service. These are planned or in-progress endpoint implementations, not features that are already available today.&lt;/p&gt;
+&lt;h3 id=&quot;p1-track-agent-progress&quot;&gt;P1: track agent progress&lt;/h3&gt;
+&lt;p&gt;&lt;code&gt;track(problem, steps, checkpoint_steps, n_evaluations, ...)&lt;/code&gt; will score an agent trajectory at each checkpoint. This is the most relevant next endpoint for a local agent workflow: it can show whether a long-running patch is moving toward a verified result, instead of waiting until the entire trajectory ends.&lt;/p&gt;
+&lt;p&gt;One concrete target is StateMachineMcp. A state machine can submit its observed steps and receive a progress signal while a patch is being developed. The roadmap describes this as an O(K) checkpoint-oriented cost, where K is the number of checkpoints.&lt;/p&gt;
+&lt;h3 id=&quot;p2-batch-directed-scoring&quot;&gt;P2: batch directed scoring&lt;/h3&gt;
+&lt;p&gt;The batch scoring API will handle many directed &lt;code&gt;(A, B)&lt;/code&gt; comparisons, with disk-cache merging and configurable parallel evaluation. This is useful when a local experiment needs to compare more than one candidate pair without rebuilding the orchestration around each request.&lt;/p&gt;
+&lt;h3 id=&quot;p3-finer-grained-scoring-controls&quot;&gt;P3: finer-grained scoring controls&lt;/h3&gt;
+&lt;p&gt;The lower-level scoring APIs will expose a single criterion comparison and the pure computation that derives directed rewards from scored data. These endpoints give callers more control than the higher-level &lt;code&gt;compare&lt;/code&gt; and &lt;code&gt;select&lt;/code&gt; operations, but they also expose more of the verifier&#39;s internal contract, so they come after trajectory tracking and batch scoring.&lt;/p&gt;
+&lt;h3 id=&quot;p4-supporting-utilities&quot;&gt;P4: supporting utilities&lt;/h3&gt;
+&lt;p&gt;The roadmap also includes small utilities for loading prompt criteria, formatting token-usage reports, and creating an OpenAI client from environment variables. They are not headline endpoints, but they reduce repeated setup code for local deployments.&lt;/p&gt;
+&lt;p&gt;The roadmap is intentionally incremental. First make a low-cost local &lt;code&gt;compare&lt;/code&gt; and &lt;code&gt;select&lt;/code&gt; service work, then add the API needed by real agent workflows, and only afterward expose lower-level controls that need stronger compatibility guarantees.&lt;/p&gt;
+&lt;h2 id=&quot;smoke-tests-are-part-of-the-image&quot;&gt;Smoke tests are part of the image&lt;/h2&gt;
+&lt;p&gt;The repository includes two one-off checks that run through Docker Compose:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #6272A4;&quot;&gt;# Backend connectivity and logprob support&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;docker&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; compose run&lt;/span&gt;&lt;span style=&quot;color: #BD93F9;&quot;&gt; --rm&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; verifier python scripts/smoke_test.py&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #6272A4;&quot;&gt;# Core compare() and select() behavior&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;docker&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; compose run&lt;/span&gt;&lt;span style=&quot;color: #BD93F9;&quot;&gt; --rm&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; verifier python scripts/verifier_smoke_test.py&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The first test checks the dependency that is easiest to overlook: whether the configured backend actually returns usable logprobs. The second test checks the wrapper&#39;s core verifier operations with assertions.&lt;/p&gt;
+&lt;p&gt;This split is useful during setup. If the connectivity test fails, changing selection logic will not help. If connectivity works but the verifier smoke test fails, the problem is closer to the package or wrapper contract.&lt;/p&gt;
+&lt;h2 id=&quot;why-use-docker-for-a-local-setup&quot;&gt;Why use Docker for a local setup?&lt;/h2&gt;
+&lt;p&gt;The research code is Python, but the deployment problem includes more than installing a package. A repeatable service needs a known entrypoint, a stable port, configuration through environment variables, persistent locations for cache and results, and a command that can run tests without entering the container manually.&lt;/p&gt;
+&lt;p&gt;Docker Compose provides those pieces with a small amount of configuration. More importantly, it leaves the model backend outside the image. The model can stay on the local machine, while the verifier service remains isolated and reproducible. This avoids baking a large model or a machine-specific serving stack into the example.&lt;/p&gt;
+&lt;p&gt;The current layout is intentionally plain:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;.&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;├── Dockerfile&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;├── docker-compose.yml&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;├── .env.example&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;└── scripts/&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ├── entrypoint.sh&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ├── server.py&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ├── smoke_test.py&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    └── verifier_smoke_test.py&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The cache and result directories are mounted at &lt;code&gt;/app/cache&lt;/code&gt; and &lt;code&gt;/app/results&lt;/code&gt; for commands that use them. They are operational state, not source code, so they remain outside the image lifecycle.&lt;/p&gt;
+&lt;h2 id=&quot;what-this-example-does-not-claim&quot;&gt;What this example does not claim&lt;/h2&gt;
+&lt;p&gt;This repository does not reproduce the upstream benchmarks, provide a new verifier algorithm, or include a model server. It packages the upstream library for a reproducible Docker-based service.&lt;/p&gt;
+&lt;p&gt;For the method and evaluation details, read the original project:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/llm-as-a-verifier/llm-as-a-verifier&quot;&gt;LLM-as-a-Verifier source repository&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://arxiv.org/abs/2607.05391&quot;&gt;LLM-as-a-Verifier paper&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://llm-as-a-verifier.com/docs/&quot;&gt;Upstream documentation&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The useful engineering lesson is narrower: when an AI research package has a clear backend contract, a small deployment wrapper can make a low-cost local experiment testable and repeatable without pretending to own the research implementation.&lt;/p&gt;
+&lt;h2 id=&quot;next-steps&quot;&gt;Next steps&lt;/h2&gt;
+&lt;p&gt;The next practical step is to connect the container to a local backend that exposes logprobs and run the two smoke tests before trying larger candidate pools. After that, the service can be integrated into an agent workflow that generates multiple trajectories and asks the verifier to compare or select among them.&lt;/p&gt;
+&lt;p&gt;That keeps the first deployment honest: verify the transport and model contract first, then measure selection behavior under the workload that matters.&lt;/p&gt;
+&lt;h2 id=&quot;citation&quot;&gt;Citation&lt;/h2&gt;
+&lt;p&gt;If you use the underlying research, please cite the upstream authors:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;bibtex&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;@misc&lt;/span&gt;&lt;span&gt;{&lt;/span&gt;&lt;span style=&quot;color: #8BE9FD;font-style: italic;&quot;&gt;kwok2026llmasaverifiergeneralpurposeverificationframework&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;  title&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;{&lt;/span&gt;&lt;span&gt;LLM-as-a-Verifier: A General-Purpose Verification Framework&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;}&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;  author&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;{&lt;/span&gt;&lt;span&gt;Jacky Kwok and Shulu Li and Pranav Atreya and Yuejiang Liu and Yixing Jiang and Chelsea Finn and Marco Pavone and Ion Stoica and Azalia Mirhoseini&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;}&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;  year&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;{&lt;/span&gt;&lt;span&gt;2026&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;}&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;  eprint&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;{&lt;/span&gt;&lt;span&gt;2607.05391&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;}&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;  archivePrefix&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;{&lt;/span&gt;&lt;span&gt;arXiv&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;}&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;  primaryClass&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;{&lt;/span&gt;&lt;span&gt;cs.AI&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;}&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;  url&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;{&lt;/span&gt;&lt;span&gt;https://arxiv.org/abs/2607.05391&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Our Pain with AI Coding Agents: Two Tools We Built to Stop Them from Breaking Things</title>
+        <published>2026-08-18T00:00:00+00:00</published>
+        <updated>2026-08-18T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/defensive-agent-architecture-graphify-statemachine/"/>
+        <id>https://cawa0505.github.io/defensive-agent-architecture-graphify-statemachine/</id>
+        
+        <summary type="html">&lt;iframe src=&quot;/defensive-agent-architecture-deck/&quot; width=&quot;100%&quot; height=&quot;500&quot; style=&quot;border:1px solid rgba(255,255,255,0.1); border-radius:12px; margin-bottom:32px;&quot; title=&quot;Defensive Agent Architecture slides&quot;&gt;&lt;/iframe&gt;
+&lt;p&gt;What&#39;s the biggest problem with using AI to write code? For us, it&#39;s not that the models aren&#39;t smart enough — it&#39;s that &lt;strong&gt;we can&#39;t trust them&lt;/strong&gt;.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;LLM tokens keep getting more expensive, but most of them go toward re-reading code structure the agent already saw.&lt;/li&gt;
+&lt;li&gt;The agent edits a file, the compiler screams, and it takes 3-4 rounds to get a clean compile.&lt;/li&gt;
+&lt;li&gt;Halfway through a task, context runs out. New session starts from scratch — everything is forgotten.&lt;/li&gt;
+&lt;li&gt;Sometimes broken code hits the filesystem before anyone notices.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;These are probably not unique to us. Our approach was to build two small tools — one for &lt;strong&gt;input cost&lt;/strong&gt;, one for &lt;strong&gt;operation safety&lt;/strong&gt; — connected to OpenCode via MCP. Each does exactly one thing.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>BloggerAgent V1.0.0 GA Development Plan</title>
+        <published>2026-08-17T03:12:00+00:00</published>
+        <updated>2026-08-17T03:12:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/bloggeragent-v1-0-0-ga-plan/"/>
+        <id>https://cawa0505.github.io/bloggeragent-v1-0-0-ga-plan/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/bloggeragent-v1-0-0-ga-plan/">&lt;h2 id=&quot;the-boundary-first&quot;&gt;The boundary first&lt;/h2&gt;
+&lt;p&gt;BloggerAgent is designed with strict separation between its core Go packages and any UI layer. This enables future Wails-based cross-platform desktop GUI with minimal friction.&lt;/p&gt;
+&lt;p&gt;The repository is currently private. This article describes the architecture and development plan; it is not a clone-and-run guide.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;pkg/renderer&lt;/code&gt; – Markdown → HTML with Chroma Dracula inline CSS.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;pkg/blogger&lt;/code&gt; – Google Blogger API v3 OAuth2, refresh flow, draft/create/post.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;pkg/editor&lt;/code&gt; – Local filesystem operations via &lt;code&gt;$EDITOR&lt;/code&gt;/&lt;code&gt;zago&lt;/code&gt;, subprocess control.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;the-current-mcp-surface&quot;&gt;The current MCP surface&lt;/h2&gt;
+&lt;p&gt;The MCP server (&lt;code&gt;pkg/mcpserver&lt;/code&gt;) currently registers four publishing tools:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;create_zola_draft&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;publish_zola_draft&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;create_blogger_draft&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;publish_blogger_post&lt;/code&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3 id=&quot;architecture-principle&quot;&gt;Architecture Principle&lt;/h3&gt;
+&lt;p&gt;BloggerAgent remains architecturally independent of OpenCode by default; integrations are exposed solely through MCP tool contracts, not by coupling core package structures. This keeps the open-source core lean and avoids bloat from opinionated editor features.&lt;/p&gt;
+&lt;h2 id=&quot;what-zola-dogfooding-changed&quot;&gt;What Zola dogfooding changed&lt;/h2&gt;
+&lt;p&gt;The Zola publishing experience revealed several edge cases that shaped the current &lt;code&gt;publish_zola_draft&lt;/code&gt; implementation:&lt;/p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Edge case&lt;/th&gt;&lt;th&gt;Root cause&lt;/th&gt;&lt;th&gt;Fix&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;404 on live site despite successful &lt;code&gt;zola build&lt;/code&gt; + &lt;code&gt;git push&lt;/code&gt;&lt;/td&gt;&lt;td&gt;Articles left in &lt;code&gt;content/drafts/&lt;/code&gt;; site only indexes &lt;code&gt;content/&lt;/code&gt;&lt;/td&gt;&lt;td&gt;&lt;strong&gt;Move file&lt;/strong&gt; &lt;code&gt;content/drafts/&lt;/code&gt; → &lt;code&gt;content/&lt;/code&gt; via &lt;code&gt;git mv&lt;/code&gt; before &lt;code&gt;zola build&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Push failure left inconsistent git state&lt;/td&gt;&lt;td&gt;&lt;code&gt;git commit --only&lt;/code&gt; omitted staged draft deletion&lt;/td&gt;&lt;td&gt;&lt;strong&gt;Use regular &lt;code&gt;git commit&lt;/code&gt;&lt;/strong&gt;; regression test asserts clean index after publish&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Rebase blocked by staged changes&lt;/td&gt;&lt;td&gt;Uncommitted index changes prevented &lt;code&gt;git pull --rebase&lt;/code&gt;&lt;/td&gt;&lt;td&gt;&lt;strong&gt;Auto &lt;code&gt;git pull --rebase origin master&lt;/code&gt;&lt;/strong&gt;; on conflict fail explicitly, retain local commit&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Idempotent retry forced upstream guess&lt;/td&gt;&lt;td&gt;Repeated publish risked committing half-finished state&lt;/td&gt;&lt;td&gt;&lt;strong&gt;Fail-closed retry&lt;/strong&gt;: full publish may safely re-invoke; returns same public URL on success&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Verification checked local files instead of remote&lt;/td&gt;&lt;td&gt;Code only inspected &lt;code&gt;public/&lt;/code&gt; HTML&lt;/td&gt;&lt;td&gt;&lt;strong&gt;Read remote response body&lt;/strong&gt;; fail-fast on non-200&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;h2 id=&quot;what-works-now&quot;&gt;What works now&lt;/h2&gt;
+&lt;p&gt;Implemented and verifiable today:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Core MCP primitives&lt;/strong&gt;: &lt;code&gt;create_blogger_draft&lt;/code&gt;, &lt;code&gt;publish_blogger_post&lt;/code&gt;, &lt;code&gt;create_zola_draft&lt;/code&gt;, &lt;code&gt;publish_zola_draft&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Atomic Zola publish&lt;/strong&gt;: Move draft → &lt;code&gt;content/&lt;/code&gt;, remove &lt;code&gt;draft=true&lt;/code&gt;, &lt;code&gt;zola build&lt;/code&gt;, scoped commit/push with rollback-on-failure, public URL read-back verification&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;XDG Base Directory compliance&lt;/strong&gt;: Config under &lt;code&gt;$XDG_CONFIG_HOME/blogger-agent/&lt;/code&gt;; credentials under &lt;code&gt;$XDG_DATA_HOME/blogger-agent/&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Blogger OAuth and publishing&lt;/strong&gt;: Markdown rendering, Blogger draft creation, and publication by Post ID&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;v1-0-0-ga-candidate-scope&quot;&gt;V1.0.0 GA candidate scope&lt;/h2&gt;
+&lt;p&gt;The v1.0 product plan is still a discussion document. Its central proposal is a domain-limited editorial run rather than a general code agent. A run would preserve source provenance, the Markdown artifact, a SHA-256 content hash, approval state, publication identifiers, and public verification evidence.&lt;/p&gt;
+&lt;p&gt;Approval must be bound to the artifact hash. Any content or front-matter change invalidates the previous approval. Retries must inspect remote state before creating another draft or publication.&lt;/p&gt;
+&lt;p&gt;The TUI candidate contract includes integrated URL and QR authentication, explicit loading/empty/error states, keyboard and mouse paths for primary actions, and manual resolution when local Markdown and remote Blogger content both changed. These are GA targets, not claims about the current implementation.&lt;/p&gt;
+&lt;p&gt;Several details remain &lt;code&gt;[待討論]&lt;/code&gt;: the run-state storage format and path, the exact editorial-run MCP schema, whether TUI is the primary approval interface, and whether Blogger and Zola must reach identical verification depth for GA.&lt;/p&gt;
+&lt;h3 id=&quot;post-ga-ideas-high-level-no-commitment&quot;&gt;Post-GA ideas (high-level, no commitment)&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Wails-based cross-platform desktop GUI using the same Go core&lt;/li&gt;
+&lt;li&gt;Optional &lt;code&gt;style-corpus&lt;/code&gt; MCP layer for personal tone retrieval (decoupled from core)&lt;/li&gt;
+&lt;li&gt;QR-code-based mobile auth flows (HalfBlocks, minimal density)&lt;/li&gt;
+&lt;li&gt;Refactored dependency injection for testability (e.g., injectable HTTP client in &lt;code&gt;google.golang.org/api/option&lt;/code&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;key-lessons&quot;&gt;Key Lessons&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Machine prepares, human gates&lt;/strong&gt; – the editorial pipeline always has a human-confirmation step before Blogger publish or Zola public deployment.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Never trust local build output as public proof&lt;/strong&gt; – always read-back the remote URL; GitHub Pages may take seconds to minutes to reflect changes.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Fail-closed by default&lt;/strong&gt; – git boundaries (no unrelated changes, rebase before push, rollback on push failure) prevent silent repository corruption.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Small, focused MCP tools&lt;/strong&gt; – four tools cover the current publishing workflow; adding more before a proven need would create contract drift.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;XDG compliance is not optional&lt;/strong&gt; – separating config from code, credentials from data, ensures the binary can be freely redistributed.&lt;/li&gt;
+&lt;/ol&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Making OpenSlide Usable by Code Agents with Four MCP Tools</title>
+        <published>2026-08-16T20:23:05+00:00</published>
+        <updated>2026-08-16T20:23:05+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/making-open-slide-usable-by-code-agents-with-four-mcp-tools/"/>
+        <id>https://cawa0505.github.io/making-open-slide-usable-by-code-agents-with-four-mcp-tools/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/making-open-slide-usable-by-code-agents-with-four-mcp-tools/">&lt;p&gt;OpenSlide already had the hard part: a slide engine, a React authoring model, a CLI, and static builds. What it lacked was a clean boundary for code agents.&lt;/p&gt;
+&lt;p&gt;A human can answer an overwrite prompt, watch terminal output, and decide what command to run next. An agent works better with named arguments, validation, and one structured response per operation. The new OpenSlide MCP server adds that boundary without creating a second slide engine.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/open-slide-mcp-demo.gif&quot; alt=&quot;OpenSlide MCP stdio demo&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;The recording above shows the real end-to-end flow: the five-page brief, the agent-authored slide source, and &lt;code&gt;open_slide_build&lt;/code&gt; resolving the output directory — all through a real MCP client over stdio.&lt;/p&gt;
+&lt;h2 id=&quot;the-boundary-was-the-missing-piece&quot;&gt;The boundary was the missing piece&lt;/h2&gt;
+&lt;p&gt;The implementation is intentionally thin:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;code agent&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    │ MCP over stdio&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;@open-slide/mcp&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    │ validated function calls&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;@open-slide/cli + @open-slide/core/cli&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The MCP package uses the official TypeScript MCP SDK and Zod. Each handler validates its input, delegates to existing OpenSlide code, and returns JSON as MCP text content. Build logic, workspace scaffolding, skill synchronization, and HTML generation remain owned by the existing CLI packages.&lt;/p&gt;
+&lt;p&gt;That matters because duplicating those operations inside an MCP-specific implementation would create two behaviors to maintain. A thin adapter keeps the protocol boundary new while leaving the slide engine alone.&lt;/p&gt;
+&lt;h2 id=&quot;four-finite-tools&quot;&gt;Four finite tools&lt;/h2&gt;
+&lt;p&gt;The server exposes four operations:&lt;/p&gt;
+&lt;h3 id=&quot;open-slide-init&quot;&gt;&lt;code&gt;open_slide_init&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;Creates a workspace. Its arguments cover the decisions that would otherwise require interactive terminal input:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;dir, force, name, install, git, packageManager&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The result reports the resolved workspace directory.&lt;/p&gt;
+&lt;h3 id=&quot;open-slide-build&quot;&gt;&lt;code&gt;open_slide_build&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;Builds an existing workspace into a static SPA. It accepts the workspace directory and an optional output directory, then reports the resolved output path.&lt;/p&gt;
+&lt;h3 id=&quot;open-slide-export-html&quot;&gt;&lt;code&gt;open_slide_export_html&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;Builds the workspace and attempts to produce one HTML file. It accepts the workspace directory and an optional output filename.&lt;/p&gt;
+&lt;h3 id=&quot;open-slide-sync-skills&quot;&gt;&lt;code&gt;open_slide_sync_skills&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;Synchronizes OpenSlide&#39;s bundled agent skills into the workspace. With &lt;code&gt;dryRun: true&lt;/code&gt;, it reports drift without writing files. The implementation also preserves the existing symlink-first behavior and copy fallback.&lt;/p&gt;
+&lt;p&gt;These are deliberately finite operations. Long-running &lt;code&gt;dev&lt;/code&gt; and &lt;code&gt;preview&lt;/code&gt; sessions are not MCP tools. They do not fit the same request-response lifecycle and remain normal CLI commands.&lt;/p&gt;
+&lt;h2 id=&quot;dogfooding-the-workflow&quot;&gt;Dogfooding the workflow&lt;/h2&gt;
+&lt;p&gt;The deck below was made through the same path described here:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;open_slide_init&lt;/code&gt; created an isolated workspace.&lt;/li&gt;
+&lt;li&gt;The agent replaced the generated sample with a five-page React deck about the MCP server.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;open_slide_build&lt;/code&gt; compiled the workspace.&lt;/li&gt;
+&lt;li&gt;The resulting static SPA was copied into this Zola site&#39;s &lt;code&gt;static/&lt;/code&gt; tree.&lt;/li&gt;
+&lt;li&gt;This article embeds that real output rather than a screenshot of it.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;div style=&quot;position:relative;width:100%;aspect-ratio:16/9;margin:2rem 0;overflow:hidden;border:1px solid #444;border-radius:8px;background:#0b0d10&quot;&gt;
+  &lt;iframe src=&quot;/open-slide-mcp-demo/&quot; title=&quot;OpenSlide MCP for code agents&quot; loading=&quot;lazy&quot; allowfullscreen style=&quot;position:absolute;inset:0;width:100%;height:100%;border:0&quot;&gt;&lt;/iframe&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;a href=&quot;/open-slide-mcp-demo/&quot;&gt;Open the interactive deck in a separate tab&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Use the left and right arrow keys inside the deck to move between its five pages.&lt;/p&gt;
+&lt;h2 id=&quot;what-the-demo-found&quot;&gt;What the demo found&lt;/h2&gt;
+&lt;p&gt;Dogfooding exposed a real limitation in &lt;code&gt;open_slide_export_html&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;The exporter sets Vite&#39;s asset inline limit high enough to inline normal emitted assets, then replaces the entry JavaScript and CSS references in &lt;code&gt;index.html&lt;/code&gt;. Slide decks, however, are loaded as dynamic JavaScript chunks. The exported HTML did not contain the chunk for this deck, so calling the file self-contained would be inaccurate.&lt;/p&gt;
+&lt;p&gt;The embedded artifact therefore uses &lt;code&gt;open_slide_build&lt;/code&gt;, with a dedicated base path, instead of pretending the single-file export worked. The build output contains the entry bundle, CSS, fonts, and the deck&#39;s dynamic chunk under one static directory.&lt;/p&gt;
+&lt;p&gt;This is exactly why a real end-to-end artifact is more useful than a tool-registration test. The MCP calls worked, the build worked, and the final embed still revealed a packaging bug at the delivery boundary.&lt;/p&gt;
+&lt;h2 id=&quot;what-mcp-improves-and-what-it-does-not&quot;&gt;What MCP improves—and what it does not&lt;/h2&gt;
+&lt;p&gt;MCP removes terminal ambiguity for agents:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;no TTY prompt parsing for workspace creation;&lt;/li&gt;
+&lt;li&gt;explicit, validated arguments;&lt;/li&gt;
+&lt;li&gt;stable structured responses;&lt;/li&gt;
+&lt;li&gt;direct access to existing build and synchronization operations;&lt;/li&gt;
+&lt;li&gt;no duplicated slide engine.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;It does not remove OpenSlide&#39;s runtime requirements. The server still needs Node.js 18 or newer and the OpenSlide packages. A static build still needs to be hosted somewhere. Large assets still increase output size. Interactive development remains a CLI workflow.&lt;/p&gt;
+&lt;p&gt;The result is small on purpose: four tools, one stdio transport, and delegation to code that already existed. That is enough for an agent to create a workspace, author a deck, build it, and hand a deployable artifact to the next step.&lt;/p&gt;
+&lt;h2 id=&quot;sources&quot;&gt;Sources&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/open-slide&quot;&gt;OpenSlide repository&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/open-slide/commit/7c1be9b4db4b51f17c7fbfb4db272461a0676d68&quot;&gt;MCP tools implementation&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/open-slide/commit/de7a5aa8752bc59d8b1b57049e619a638613182c&quot;&gt;Symlink entry-point fix&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Why open-design-mcp Exists: Fixing Auth Between MCP and the Open Design Daemon</title>
+        <published>2026-08-16T19:43:44+00:00</published>
+        <updated>2026-08-16T19:43:44+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/why-open-design-mcp-exists/"/>
+        <id>https://cawa0505.github.io/why-open-design-mcp-exists/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/why-open-design-mcp-exists/">&lt;p&gt;The Open Design daemon already had a Web UI, a REST API, and an stdio MCP client. On paper, that should have been enough for an agent to control it.&lt;/p&gt;
+&lt;p&gt;It was not.&lt;/p&gt;
+&lt;p&gt;When the daemon enforced &lt;code&gt;OD_API_TOKEN&lt;/code&gt;, the stdio client called the REST API without an &lt;code&gt;Authorization&lt;/code&gt; header. The MCP connection itself started normally, but every tool call that crossed into the daemon failed with HTTP 401.&lt;/p&gt;
+&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/iscixin/open-design-mcp&quot;&gt;open-design-mcp&lt;/a&gt; exists to fix that narrow integration gap. It is not another design editor, a replacement daemon, or a new MCP implementation. It is a small distribution layer around the upstream Open Design client: one authentication patch, one token-loading wrapper, and scripts that build and install the patched binary from source.&lt;/p&gt;
+&lt;h2 id=&quot;the-missing-protocol-boundary&quot;&gt;The missing protocol boundary&lt;/h2&gt;
+&lt;p&gt;The actual path has three parts:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;MCP client&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    │ stdio / JSON-RPC&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;od-mcp wrapper&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    │ HTTP / REST + Bearer token&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Open Design daemon&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The stdio side was already present upstream. Authentication was missing on the HTTP side.&lt;/p&gt;
+&lt;p&gt;The patch adds a helper that reads &lt;code&gt;OD_API_TOKEN&lt;/code&gt; and returns the header expected by the daemon:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;typescript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;function&lt;/span&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt; daemonHeaders&lt;/span&gt;&lt;span&gt;()&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #8BE9FD;font-style: italic;&quot;&gt; Record&lt;/span&gt;&lt;span&gt;&amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #8BE9FD;font-style: italic;&quot;&gt;string&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;span style=&quot;color: #8BE9FD;font-style: italic;&quot;&gt; string&lt;/span&gt;&lt;span&gt;&amp;gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;  const&lt;/span&gt;&lt;span&gt; token&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt; =&lt;/span&gt;&lt;span&gt; process.env.&lt;/span&gt;&lt;span style=&quot;color: #BD93F9;&quot;&gt;OD_API_TOKEN&lt;/span&gt;&lt;span&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;  return&lt;/span&gt;&lt;span&gt; token&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt; ?&lt;/span&gt;&lt;span&gt; { Authorization&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; `Bearer &lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;${&lt;/span&gt;&lt;span&gt;token&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;}&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt;`&lt;/span&gt;&lt;span&gt; }&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt; :&lt;/span&gt;&lt;span&gt; {};&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Every fetch from the stdio client to the daemon uses that header. The change is intentionally small because the daemon, tools, and transport were not the problem. Replacing any of them would have created a larger fork to maintain.&lt;/p&gt;
+&lt;h2 id=&quot;why-the-token-is-not-stored-in-mcp-config&quot;&gt;Why the token is not stored in MCP config&lt;/h2&gt;
+&lt;p&gt;Putting the raw token directly in &lt;code&gt;opencode.json&lt;/code&gt; would make the first request work, but it creates a second problem: secrets become duplicated across client configuration files. Rotation then requires editing every client that launches the MCP server.&lt;/p&gt;
+&lt;p&gt;The &lt;code&gt;od-mcp&lt;/code&gt; wrapper reads the token from a separate file when the process starts. The default is:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;~/.config/opencode/.od_token&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The file is created with owner-only permissions:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;openssl&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; rand&lt;/span&gt;&lt;span style=&quot;color: #BD93F9;&quot;&gt; -hex 32&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt; &amp;gt;&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; ~/.config/opencode/.od_token&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;chmod&lt;/span&gt;&lt;span style=&quot;color: #BD93F9;&quot;&gt; 600&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; ~/.config/opencode/.od_token&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The MCP configuration only needs the daemon URL and the wrapper command. The token remains outside the project repository and outside the client config. To rotate it, replace the file and restart the MCP process.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;OD_API_TOKEN&lt;/code&gt; can still override the file when an environment-based secret source is appropriate. &lt;code&gt;OD_TOKEN_FILE&lt;/code&gt; can point the wrapper at a different file.&lt;/p&gt;
+&lt;h2 id=&quot;why-this-repository-builds-from-source&quot;&gt;Why this repository builds from source&lt;/h2&gt;
+&lt;p&gt;The upstream daemon package is not published as an installable npm package. A normal &lt;code&gt;npm install&lt;/code&gt; path therefore cannot provide the patched &lt;code&gt;od&lt;/code&gt; command.&lt;/p&gt;
+&lt;p&gt;The repository keeps the workaround explicit:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Clone or update the upstream Open Design source.&lt;/li&gt;
+&lt;li&gt;Check whether the authentication patch is already present.&lt;/li&gt;
+&lt;li&gt;Fail if the patch no longer applies cleanly.&lt;/li&gt;
+&lt;li&gt;Install dependencies with the frozen lockfile.&lt;/li&gt;
+&lt;li&gt;Build the daemon package.&lt;/li&gt;
+&lt;li&gt;Link the resulting command locally.&lt;/li&gt;
+&lt;li&gt;Install the &lt;code&gt;od-mcp&lt;/code&gt; wrapper into the user&#39;s path.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;That fail-closed patch check matters. If upstream changes &lt;code&gt;mcp.ts&lt;/code&gt;, silently skipping a stale patch would produce a binary that builds successfully but still sends unauthenticated requests. Commit &lt;a rel=&quot;external&quot; href=&quot;https://github.com/iscixin/open-design-mcp/commit/8d64e9816a46ef74a0b9a8f69ebedb10a5585aca&quot;&gt;&lt;code&gt;8d64e98&lt;/code&gt;&lt;/a&gt; changed the build script to distinguish &quot;already applied&quot; from &quot;does not apply&quot; and stop on the latter.&lt;/p&gt;
+&lt;p&gt;The same commit also documents an easy Linux naming collision: &lt;code&gt;/usr/bin/od&lt;/code&gt; is normally GNU coreutils&#39; octal dump command. If that binary wins &lt;code&gt;PATH&lt;/code&gt;, &lt;code&gt;od mcp&lt;/code&gt; fails with &lt;code&gt;Unknown command: mcp&lt;/code&gt;. The installed Open Design command must resolve from the Node binary directory instead.&lt;/p&gt;
+&lt;h2 id=&quot;what-this-solves&quot;&gt;What this solves&lt;/h2&gt;
+&lt;p&gt;The repository solves three concrete operational problems:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The stdio MCP client now authenticates every request sent to the daemon.&lt;/li&gt;
+&lt;li&gt;The token no longer needs to live in an MCP client configuration file.&lt;/li&gt;
+&lt;li&gt;The patched client can be built and linked even though the upstream package is not published to npm.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The result keeps the existing Open Design architecture intact. Agents still speak MCP over stdio. The Open Design client still talks to the daemon over REST. The daemon still owns project state and design operations.&lt;/p&gt;
+&lt;h2 id=&quot;what-it-does-not-solve&quot;&gt;What it does not solve&lt;/h2&gt;
+&lt;p&gt;This is deliberately not a general reliability layer.&lt;/p&gt;
+&lt;p&gt;The daemon remains a network dependency. If it is unavailable, the wrapper cannot make design operations succeed. Cross-host latency and firewall rules still apply. Containers still need access to the token file or an injected environment variable. A future upstream change can still require the patch to be rebased.&lt;/p&gt;
+&lt;p&gt;The wrapper also does not add or redefine tools. Claims about the daemon&#39;s complete tool or resource surface belong to the upstream Open Design project, not this patch repository.&lt;/p&gt;
+&lt;p&gt;That narrow boundary is the point. The smallest maintainable fix was not to fork Open Design. It was to add the missing bearer header, isolate the secret, and make the source-build path fail loudly when upstream changes.&lt;/p&gt;
+&lt;h2 id=&quot;source&quot;&gt;Source&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/iscixin/open-design-mcp&quot;&gt;open-design-mcp&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/nexu-io/open-design&quot;&gt;Open Design upstream&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/iscixin/open-design-mcp/blob/main/patch/mcp-auth.patch&quot;&gt;Authentication patch&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/iscixin/open-design-mcp/commit/8d64e9816a46ef74a0b9a8f69ebedb10a5585aca&quot;&gt;Fail-closed build fix&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Relay: Cross-session State Handoff as a Graphify Plugin</title>
+        <published>2026-08-09T18:44:03+08:00</published>
+        <updated>2026-08-09T18:44:03+08:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/graphify-plugin-handoff-cross-session-state/"/>
+        <id>https://cawa0505.github.io/graphify-plugin-handoff-cross-session-state/</id>
+        
+        <summary type="html">&lt;p&gt;The repository originally published as &lt;a href=&quot;/code-relay-mcp-cross-session-state-handoff/&quot;&gt;code-relay-mcp&lt;/a&gt; has been renamed to &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-plugin-handoff&quot;&gt;graphify-plugin-handoff&lt;/a&gt; and re-architected from a standalone Rust MCP server into a Graphify &lt;strong&gt;embedded plugin&lt;/strong&gt;. This article documents the actual implementation.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Graphify Plugin Architecture Roadmap</title>
+        <published>2026-08-09T04:55:00+08:00</published>
+        <updated>2026-08-09T04:55:00+08:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/graphify-plugin-architecture-roadmap/"/>
+        <id>https://cawa0505.github.io/graphify-plugin-architecture-roadmap/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/graphify-plugin-architecture-roadmap/">&lt;h2 id=&quot;overview&quot;&gt;Overview&lt;/h2&gt;
+&lt;p&gt;Graphify&#39;s plugin architecture follows a strict two-layer separation: &lt;strong&gt;Layer 1&lt;/strong&gt; (embedded v1 traits) is implemented, while &lt;strong&gt;Layer 2&lt;/strong&gt; (external SDK) remains a roadmap for third-party ecosystem development. This design keeps the core contract separate from the external plugin protocol while maintaining a clear evolution path.&lt;/p&gt;
+&lt;h2 id=&quot;implemented-embedded-v1-plugin-layer&quot;&gt;Implemented: Embedded v1 Plugin Layer&lt;/h2&gt;
+&lt;h3 id=&quot;core-contract&quot;&gt;Core Contract&lt;/h3&gt;
+&lt;p&gt;The v1 embedded plugin contract (&lt;code&gt;graphify-core/src/plugin.rs&lt;/code&gt;) defines a dependency-free trait using only &lt;code&gt;std&lt;/code&gt;. All embedded plugins implement:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;get_id(&amp;amp;self) -&amp;gt; &amp;amp;str&lt;/code&gt; — Unique plugin identifier (e.g., &lt;code&gt;&quot;graphify-plugin-handoff&quot;&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;bind(&amp;amp;mut self, ctx: WorkspaceContext)&lt;/code&gt; — Workspace context binding&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;get_workspace_key(&amp;amp;self) -&amp;gt; &amp;amp;str&lt;/code&gt; — Returns bound workspace key or empty string&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;sync_toon(&amp;amp;mut self, opt_toon: Option&amp;lt;Vec&amp;lt;u8&amp;gt;&amp;gt;) -&amp;gt; Vec&amp;lt;u8&amp;gt;&lt;/code&gt; — Passive sync (consumes .toon) or proactive sync (produces output)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;on_graph_updated(&amp;amp;mut self, _event: &amp;amp;GraphUpdateEvent)&lt;/code&gt; — Default no-op hook&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;workspace-identity&quot;&gt;Workspace Identity&lt;/h3&gt;
+&lt;p&gt;&lt;code&gt;WorkspaceContext&lt;/code&gt; provides routing identity with:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;workspace_key&lt;/code&gt; — Deterministic hash of workspace root path&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;workspace_name&lt;/code&gt; — Human-readable workspace identifier&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;root_path&lt;/code&gt; — Absolute filesystem root&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;timestamp&lt;/code&gt; — Unix epoch seconds at creation&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;event-system&quot;&gt;Event System&lt;/h3&gt;
+&lt;p&gt;&lt;code&gt;GraphUpdateEvent&lt;/code&gt; carries graph changes with:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;workspace_key&lt;/code&gt; — Routing key&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;modified_nodes&lt;/code&gt; — Affected node identifiers&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;event&lt;/code&gt; — Trigger kind: &lt;code&gt;Indexed&lt;/code&gt;, &lt;code&gt;Extracted&lt;/code&gt;, or &lt;code&gt;Manual&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;plugin-host&quot;&gt;Plugin Host&lt;/h3&gt;
+&lt;p&gt;&lt;code&gt;graphify-cli/src/plugin_host.rs&lt;/code&gt; manages bound plugins:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Registration via &lt;code&gt;register()&lt;/code&gt; method&lt;/li&gt;
+&lt;li&gt;Broadcast of &lt;code&gt;GraphUpdateEvent&lt;/code&gt; to all plugins&lt;/li&gt;
+&lt;li&gt;Panic isolation via &lt;code&gt;catch_unwind&lt;/code&gt; — failing plugins don&#39;t interrupt others&lt;/li&gt;
+&lt;li&gt;No dynamic loading in v1&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;technical-constraints&quot;&gt;Technical Constraints&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Zero external dependencies in core plugin contract&lt;/li&gt;
+&lt;li&gt;Synchronous execution only&lt;/li&gt;
+&lt;li&gt;Workspace key routing ensures deterministic plugin isolation&lt;/li&gt;
+&lt;li&gt;Default hook implementation maintains backward compatibility&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;in-development-review-pipeline&quot;&gt;In Development: Review Pipeline&lt;/h2&gt;
+&lt;h3 id=&quot;graphify-plugin-review&quot;&gt;graphify-plugin-review&lt;/h3&gt;
+&lt;p&gt;The review plugin implements topology-aware code review:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Git diff extraction&lt;/strong&gt; — Identifies modified files and symbols&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;BFS blast radius trace&lt;/strong&gt; — Calculates upward/downward impact chains&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;TOON subgraph generation&lt;/strong&gt; — Creates blast radius sub-graphs&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;AI semantic review&lt;/strong&gt; — Feeds subgraphs to AI reviewers&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3 id=&quot;workflow&quot;&gt;Workflow&lt;/h3&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Git Diff → Modified Symbols → Graphify BFS Trace → Blast Radius Sub-graph (.toon) → AI Code Reviewer Prompt&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;h3 id=&quot;current-state&quot;&gt;Current State&lt;/h3&gt;
+&lt;p&gt;The plugin exists but the full semantic review flow (Git diff → symbols → topology → TOON → semantic review) remains in development. The plugin is bound to workspaces via the v1 trait and receives graph-update events through the PluginHost.&lt;/p&gt;
+&lt;h2 id=&quot;planned-external-mcp-native-layer&quot;&gt;Planned: External MCP-Native Layer&lt;/h2&gt;
+&lt;h3 id=&quot;two-distinct-layers&quot;&gt;Two Distinct Layers&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;External Layer&lt;/strong&gt; (roadmap) vs &lt;strong&gt;Embedded Layer&lt;/strong&gt; (implemented):&lt;/p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Aspect&lt;/th&gt;&lt;th&gt;Embedded (v1)&lt;/th&gt;&lt;th&gt;External (roadmap)&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;Location&lt;/td&gt;&lt;td&gt;In-process Rust crate&lt;/td&gt;&lt;td&gt;Subprocess spawned by Graphify Core&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Language&lt;/td&gt;&lt;td&gt;Rust only&lt;/td&gt;&lt;td&gt;Any language&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Transport&lt;/td&gt;&lt;td&gt;Direct method calls&lt;/td&gt;&lt;td&gt;Stdio + JSON-RPC (MCP-native)&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Use case&lt;/td&gt;&lt;td&gt;Core-internal extension&lt;/td&gt;&lt;td&gt;Community third-party plugins&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;h3 id=&quot;planned-components&quot;&gt;Planned Components&lt;/h3&gt;
+&lt;h4 id=&quot;1-mcp-native-plugin-gateway&quot;&gt;1. MCP-Native Plugin Gateway&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;graphify-mcp unified gateway&lt;/strong&gt; — Single MCP server for external plugins&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Stdio + JSON-RPC transport&lt;/strong&gt; — Language-agnostic plugin interface&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Tool registration&lt;/strong&gt; — External plugins expose tools through MCP&#39;s &lt;code&gt;tools/list&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Mode 1 (Unified Gateway)&lt;/strong&gt; — graphify-mcp acts as MCP client, spawns plugins, aggregates tools&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;2-polyglot-sdks&quot;&gt;2. Polyglot SDKs&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;TypeScript/Node.js&lt;/strong&gt; — Primary target for OpenCode plugins and editor integrations&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Python&lt;/strong&gt; — For &lt;code&gt;graphify-plugin-opendoc&lt;/code&gt; (vector retrieval, LangChain/LlamaIndex)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Rust&lt;/strong&gt; — Native speed, internal plugins, adapter reference implementation&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;PHP&lt;/strong&gt; — Composer-managed PHP plugin SDK (deferred)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;3-plugin-lifecycle-management&quot;&gt;3. Plugin Lifecycle Management&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Lazy spawn&lt;/strong&gt; vs &lt;strong&gt;eager startup&lt;/strong&gt; configuration&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Crash/restart handling&lt;/strong&gt; — Plugin lifecycle monitoring&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Protocol versioning&lt;/strong&gt; — Semver for JSON-RPC schema&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Tool prefix strategy&lt;/strong&gt; — &lt;code&gt;graphify_&amp;lt;plugin&amp;gt;_&amp;lt;tool&amp;gt;&lt;/code&gt; naming&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;technical-roadmap&quot;&gt;Technical Roadmap&lt;/h3&gt;
+&lt;h4 id=&quot;phase-1-core-interface&quot;&gt;Phase 1: Core Interface&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;Finalize external protocol specification&lt;/li&gt;
+&lt;li&gt;Implement MCPPluginAdapter bridge (if unification desired)&lt;/li&gt;
+&lt;li&gt;Define JSON-RPC method contracts independent of v1 trait&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;phase-2-review-handoff&quot;&gt;Phase 2: Review &amp;amp; Handoff&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;Complete graphify-plugin-review pipeline&lt;/li&gt;
+&lt;li&gt;Implement graphify-plugin-handoff with .toon sub-graph export&lt;/li&gt;
+&lt;li&gt;Add graphify-plugin-opendoc vector integration&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;phase-3-external-sdk-deferred&quot;&gt;Phase 3: External SDK (Deferred)&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;Ship TypeScript/Node.js SDK first&lt;/li&gt;
+&lt;li&gt;Implement Python SDK for document processing&lt;/li&gt;
+&lt;li&gt;Add Rust adapter for external plugin compatibility&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;dogfood-cawa0505-github-io-editorial-workflow&quot;&gt;Dogfood: cawa0505.github.io Editorial Workflow&lt;/h2&gt;
+&lt;p&gt;This cawa0505.github.io site can leverage Graphify topology to supply bounded code context for articles. The editorial workflow would:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Extract workspace topology&lt;/strong&gt; — Use Graphify to analyze repository structure&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Generate bounded context&lt;/strong&gt; — Create TOON subgraphs representing relevant code sections&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Supply to AI reviewers&lt;/strong&gt; — Feed topology to semantic review pipeline for technical accuracy&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Maintain manual verification&lt;/strong&gt; — Facts remain manually verified, with performance/model benchmarks separate from executable milestones&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3 id=&quot;example-integration&quot;&gt;Example Integration&lt;/h3&gt;
+&lt;p&gt;When publishing architecture articles, the workflow could:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Extract the target repository&#39;s graph using &lt;code&gt;graphify extract&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Query specific modules or components using &lt;code&gt;graphify query&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Generate blast radius sub-graphs for impacted areas&lt;/li&gt;
+&lt;li&gt;Supply bounded context to AI for technical review&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;thesis-structural-facts-vs-semantic-interpretation&quot;&gt;Thesis: Structural Facts vs Semantic Interpretation&lt;/h2&gt;
+&lt;p&gt;Graphify computes explicit &lt;strong&gt;structural relationships&lt;/strong&gt; that should not be left to guesswork:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Symbol and file relationships&lt;/li&gt;
+&lt;li&gt;Call graph and impact-radius traversals&lt;/li&gt;
+&lt;li&gt;Deterministic workspace-key derivation from the workspace root&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;LLMs later interpret &lt;strong&gt;bounded semantic context&lt;/strong&gt; derived from these facts. Performance/model benchmarks remain separate from executable milestones, ensuring factual accuracy precedes semantic interpretation.&lt;/p&gt;
+&lt;h2 id=&quot;external-links&quot;&gt;External Links&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;GraphifyRust GitHub&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust/blob/main/docs/plugin_system.md&quot;&gt;Plugin System Documentation&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust/blob/main/docs/plugin-sdk-roadmap.md&quot;&gt;Plugin SDK Roadmap&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Graphify&#39;s plugin architecture maintains a clean separation between implemented embedded v1 traits and planned external MCP-native layer. The current implementation provides a solid foundation for internal extensions while leaving the external plugin ecosystem as a deliberate roadmap item. This approach ensures core stability while enabling future polyglot plugin development.&lt;/p&gt;
+&lt;p&gt;The system demonstrates that &lt;strong&gt;Rust computes structural facts that should not be guessed&lt;/strong&gt;; LLMs later interpret bounded semantic context. This philosophy ensures factual accuracy while enabling powerful AI-assisted workflows.&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Tapedeck: A Scriptable Recording Deck for Terminal Demos</title>
+        <published>2026-08-08T00:00:00+00:00</published>
+        <updated>2026-08-08T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/tapedeck-first-poc/"/>
+        <id>https://cawa0505.github.io/tapedeck-first-poc/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/tapedeck-first-poc/">&lt;p&gt;Most terminal demos are recorded the hard way: start a screen recorder, type the same commands again, and hope the timing survives the next take. &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck&lt;/a&gt; is a small Rust proof of concept aimed at making that process scriptable.&lt;/p&gt;
+&lt;p&gt;The input is a &lt;code&gt;.roll&lt;/code&gt; file. It describes the actions that should happen during a recording — typing, key presses, sleeps, output format, and frame rate — instead of encoding the demo as a one-off manual session.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/tapedeck-tui-demo.gif&quot; alt=&quot;Tapedeck TUI demo&quot; /&gt;&lt;/p&gt;
+&lt;h2 id=&quot;the-first-useful-split&quot;&gt;The first useful split&lt;/h2&gt;
+&lt;p&gt;Tapedeck currently has two recording paths:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/charmbracelet/vhs&quot;&gt;VHS&lt;/a&gt;&lt;/strong&gt; for terminal sessions, translating the script into a &lt;code&gt;vhs .tape&lt;/code&gt; run.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Native&lt;/strong&gt; for real desktop windows, with Wayland/X11 input and capture work planned around the native engine.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;code&gt;Set Engine Auto&lt;/code&gt; lets the project choose the path from the script&#39;s intent. The CLI also supports &lt;code&gt;--dry-run&lt;/code&gt;, so a recording can be checked for parsing and engine selection before it touches the screen.&lt;/p&gt;
+&lt;p&gt;The implementation is deliberately becoming boring in the right places: shared &lt;code&gt;.roll&lt;/code&gt; parsing, an engine trait, XDG-aware configuration, and explicit output flags such as &lt;code&gt;--fps&lt;/code&gt;, &lt;code&gt;--gif&lt;/code&gt;, and &lt;code&gt;--webp&lt;/code&gt;. The latest commits add &lt;code&gt;tapedeck doctor&lt;/code&gt;, which checks dependencies and probes available hardware encoders before saving the result to configuration.&lt;/p&gt;
+&lt;h2 id=&quot;why-this-is-a-poc&quot;&gt;Why this is a PoC&lt;/h2&gt;
+&lt;p&gt;The current milestone is not a polished capture suite. It is a test of the core loop:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;.roll script → parse → select engine → record → export media&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That loop is already enough to make a terminal demo repeatable. The next articles can go deeper into native window capture, hardware encoding, and asset management. For now, Tapedeck is the smallest interesting question: can a developer describe a demo once and regenerate it without manually replaying every keystroke?&lt;/p&gt;
+&lt;p&gt;→ &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck on GitHub&lt;/a&gt;&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>When a Markdown Editor Remembers LOGO</title>
+        <published>2026-08-08T00:00:00+00:00</published>
+        <updated>2026-08-08T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/zago-logo-in-a-markdown-editor/"/>
+        <id>https://cawa0505.github.io/zago-logo-in-a-markdown-editor/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/zago-logo-in-a-markdown-editor/">&lt;p&gt;There is a particular kind of software nostalgia that still earns its place: LOGO&#39;s turtle, reduced to movement, repetition, and a trail left behind.&lt;/p&gt;
+&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble/zago&quot;&gt;zago&lt;/a&gt; brings that idea into a terminal Markdown editor. It is written by &lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble&quot;&gt;zonble&lt;/a&gt;, and the interesting part is not a separate graphics window. The text buffer itself becomes the canvas.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/zago-logo-turtle.gif&quot; alt=&quot;A zago LOGO turtle drawing recorded with Tapedeck&quot; /&gt;&lt;/p&gt;
+&lt;h2 id=&quot;the-pen-is-a-text-buffer-mode&quot;&gt;The pen is a text-buffer mode&lt;/h2&gt;
+&lt;p&gt;zago&#39;s Editor LOGO uses the familiar &lt;code&gt;PD&lt;/code&gt; and &lt;code&gt;PU&lt;/code&gt; commands:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;PD&lt;/code&gt; — pen down; movement leaves line-drawing characters in the buffer.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;PU&lt;/code&gt; — pen up; movement becomes safe navigation again.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;FD&lt;/code&gt; — move forward in the current direction.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;RT&lt;/code&gt; and &lt;code&gt;LT&lt;/code&gt; — turn right or left by 90 degrees.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;When the pen is down, zago does more than print independent characters. It merges horizontal and vertical strokes into Unicode junctions such as &lt;code&gt;┌&lt;/code&gt;, &lt;code&gt;┐&lt;/code&gt;, &lt;code&gt;└&lt;/code&gt;, &lt;code&gt;┘&lt;/code&gt;, and &lt;code&gt;┼&lt;/code&gt;. That makes a sequence of cursor movements behave like a small diagram editor while the result remains plain text.&lt;/p&gt;
+&lt;p&gt;The default is deliberately safe: LOGO execution starts with the pen up. A macro has to opt into drawing explicitly, and a finished drawing should lift the pen again.&lt;/p&gt;
+&lt;h2 id=&quot;a-small-polygon-instead-of-box&quot;&gt;A small polygon instead of &lt;code&gt;BOX&lt;/code&gt;&lt;/h2&gt;
+&lt;p&gt;The official pen-mode guide already demonstrates a square with &lt;code&gt;BOX&lt;/code&gt;-like movement. For this recording I used a stepped octagon so the demo shows turtle movement without repeating that example:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;logo&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;PD FD 16 RT 90 FD 8 RT 90 FD 6 RT 90 FD 3&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;RT 90 FD 4 RT 90 FD 3 RT 90 FD 6 RT 90 FD 8 PU&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;zago&#39;s turns are 90-degree turns, so this is not a graphical regular octagon. It is an orthogonal text polygon: a sequence of straight moves and right-angle turns that closes back on itself. The shape is less important than the mechanism — the turtle moves, the buffer records the path, and junction characters are fused as the path changes direction.&lt;/p&gt;
+&lt;p&gt;The same command can be tested without opening the editor:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;zago&lt;/span&gt;&lt;span style=&quot;color: #BD93F9;&quot;&gt; -e&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt; &amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt;PD FD 16 RT 90 FD 8 RT 90 FD 6 RT 90 FD 3 RT 90 FD 4 RT 90 FD 3 RT 90 FD 6 RT 90 FD 8 PU&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That headless mode is useful for checking a drawing before putting it into an interactive recording. It also makes the output easy to inspect in a shell or pipeline.&lt;/p&gt;
+&lt;h2 id=&quot;recording-the-interaction-instead-of-recording-it-again&quot;&gt;Recording the interaction instead of recording it again&lt;/h2&gt;
+&lt;p&gt;I used &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck&lt;/a&gt; to turn the terminal session into a repeatable &lt;code&gt;.roll&lt;/code&gt; script. The script is named &lt;code&gt;examples/tui_zago_logo_turtle.roll&lt;/code&gt; in the Tapedeck repository and describes the boring parts explicitly:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Set Engine Auto&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Set Output &amp;quot;zago_logo_turtle.gif&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Set FPS 15&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;...&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Escape&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Type &amp;quot;PD FD 16 RT 90 FD 8 RT 90 FD 6 RT 90 FD 3 RT 90 FD 4 RT 90 FD 3 RT 90 FD 6 RT 90 FD 8 PU&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Enter&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;code&gt;tapedeck run --dry-run examples/tui_zago_logo_turtle.roll&lt;/code&gt; passes the parser and selects the VHS engine. Running the script produced a &lt;code&gt;1200×600&lt;/code&gt; GIF with 251 frames in the local recording environment. The output is a terminal capture, not a claim that zago opens a graphical turtle canvas.&lt;/p&gt;
+&lt;p&gt;That distinction matters. zago owns the editor and the LOGO language; Tapedeck only makes the interaction reproducible. If the recording needs a new shape later, the script is the source of the demo instead of a sequence of manually timed keystrokes.&lt;/p&gt;
+&lt;h2 id=&quot;a-small-downstream-contribution&quot;&gt;A small downstream contribution&lt;/h2&gt;
+&lt;p&gt;I also maintain &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/aur-zago&quot;&gt;aur-zago&lt;/a&gt;, an Arch Linux packaging project for zago. The intended AUR package name is &lt;code&gt;zago-bin&lt;/code&gt;; it is not published in the AUR yet because new account registration is currently unavailable to me. This is downstream work, not zago development. I packaged it because I am a fan of zonble&#39;s project and wanted a convenient Arch installation path; the zago design, implementation, and authorship remain zonble&#39;s.&lt;/p&gt;
+&lt;p&gt;That boundary is worth stating plainly when writing about tools one did not create. Packaging, recording, and documenting a project can be useful without turning into an ownership claim.&lt;/p&gt;
+&lt;h2 id=&quot;sources&quot;&gt;Sources&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble/zago/blob/main/README.md&quot;&gt;zago README&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble/zago/blob/main/docs/logo.md&quot;&gt;Editor LOGO documentation&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble/zago/blob/main/docs/logo_pen_mode.md&quot;&gt;Pen mode and turtle drawing&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/aur-zago&quot;&gt;aur-zago&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Porting Terminimal to Zola 0.23: When Tera Deleted Macros</title>
+        <published>2026-08-06T00:05:00+00:00</published>
+        <updated>2026-08-06T00:05:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/porting-terminimal-to-zola-0-23/"/>
+        <id>https://cawa0505.github.io/porting-terminimal-to-zola-0-23/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/porting-terminimal-to-zola-0-23/">&lt;p&gt;Zola 0.23 shipped on 2026-08-05 with a template engine that is not backwards compatible. It bundles Tera 2 — a full rewrite — and the upgrade broke macro-based themes in the ecosystem, including &lt;a rel=&quot;external&quot; href=&quot;https://github.com/pawroman/zola-theme-terminimal&quot;&gt;Terminimal&lt;/a&gt;, the one this site runs on. Upstream hadn&#39;t been touched for 0.20+, so I ported it myself. Here&#39;s what actually changed.&lt;/p&gt;
+&lt;h2 id=&quot;what-zola-is-briefly&quot;&gt;What Zola is, briefly&lt;/h2&gt;
+&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://www.getzola.org/&quot;&gt;Zola&lt;/a&gt; is a static site generator in a single Rust binary. No Node, no Ruby, no plugin ecosystem to keep alive — you write Markdown, it builds HTML. It uses &lt;a rel=&quot;external&quot; href=&quot;https://github.com/Keats/tera&quot;&gt;Tera&lt;/a&gt; for templating, a Jinja2-like engine. That engine is exactly what changed under it.&lt;/p&gt;
+&lt;h2 id=&quot;tera-2-deleted-macros&quot;&gt;Tera 2 deleted macros&lt;/h2&gt;
+&lt;p&gt;The migration guide is blunt about it:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Macros? Yep completely gone. Nada. They are replaced with components.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Terminimal is built out of macros — &lt;code&gt;date&lt;/code&gt;, &lt;code&gt;head&lt;/code&gt;, &lt;code&gt;menu&lt;/code&gt;, &lt;code&gt;post&lt;/code&gt;, &lt;code&gt;title&lt;/code&gt; — 11 of them across 5 files, called from every template. In Tera 1 you imported and called them:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% import &amp;quot;macros/post.html&amp;quot; as post_macros %}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{{ post_macros::header(page=page) }}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In Tera 2 that entire model is gone. No &lt;code&gt;{% import %}&lt;/code&gt;, no &lt;code&gt;::&lt;/code&gt;, no &lt;code&gt;{% macro %}&lt;/code&gt;. Components replace them, and they are &lt;strong&gt;globally registered&lt;/strong&gt; — any template containing a &lt;code&gt;{% component %}&lt;/code&gt; block is available everywhere, no import step.&lt;/p&gt;
+&lt;h3 id=&quot;define&quot;&gt;Define&lt;/h3&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% component header(page) %}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  &amp;lt;h1&amp;gt;{{ page.title }}&amp;lt;/h1&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% endcomponent header %}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;h3 id=&quot;call-jsx-not-function-calls&quot;&gt;Call — JSX, not function calls&lt;/h3&gt;
+&lt;p&gt;This is the part that trips you up. Invocation is a JSX-like tag, not a function call:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{# Tera 1 #}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{{ post_macros::header(page=page) }}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{# Tera 2 #}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{{&amp;lt;header page={page}/&amp;gt;}}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;String literals stay bare; every non-string value goes in braces: &lt;code&gt;page={page}&lt;/code&gt;, &lt;code&gt;summary={true}&lt;/code&gt;, &lt;code&gt;short={true}&lt;/code&gt;. To capture output into a variable you self-close inside &lt;code&gt;set&lt;/code&gt;:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% set title = &amp;lt;title page_title={page.title} main_title={config.title}/&amp;gt; %}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;h3 id=&quot;the-gotcha-no-ambient-context&quot;&gt;The gotcha: no ambient context&lt;/h3&gt;
+&lt;p&gt;Macros in Tera 1 could see the global template context. &lt;strong&gt;Components can&#39;t.&lt;/strong&gt; A component only receives what you pass it. Terminimal&#39;s &lt;code&gt;title&lt;/code&gt; macro read &lt;code&gt;config.extra.page_titles&lt;/code&gt; directly; the &lt;code&gt;menu&lt;/code&gt; macro read &lt;code&gt;current_url&lt;/code&gt;. Both broke silently until every call site was updated to pass those in explicitly:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{{&amp;lt;menu config={config} current_path={current_path} current_url={current_url}/&amp;gt;}}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That&#39;s the real migration cost — not the mechanical &lt;code&gt;::&lt;/code&gt; → &lt;code&gt;.&lt;/code&gt; rename, but hunting down every implicit context read and threading it through as an argument.&lt;/p&gt;
+&lt;h2 id=&quot;shortcodes-are-gone-too&quot;&gt;Shortcodes are gone too&lt;/h2&gt;
+&lt;p&gt;Same release, second surprise, straight from the changelog:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;As mentioned, shortcodes have been completely removed. [...] just use Tera, the same components you can use elsewhere in your site.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Terminimal&#39;s &lt;code&gt;figure&lt;/code&gt; and &lt;code&gt;image&lt;/code&gt; shortcodes became components. In content, the call syntax changes from the old &lt;code&gt;{{ figure(src=&quot;...&quot;) }}&lt;/code&gt; to the component form:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;markdown&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{{&amp;lt; figure src=&amp;quot;/img/x.png&amp;quot; /&amp;gt;}}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;No more separate &lt;code&gt;templates/shortcodes/&lt;/code&gt; mental model — it&#39;s components all the way down.&lt;/p&gt;
+&lt;h2 id=&quot;the-tests-changed-shape&quot;&gt;The tests changed shape&lt;/h2&gt;
+&lt;p&gt;String tests moved to named arguments. What used to be positional now errors without a keyword:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{# breaks in Tera 2 #}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% if url is starting_with(&amp;quot;http&amp;quot;) %}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{# works #}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{% if url is starting_with(pat=&amp;quot;http&amp;quot;) %}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&quot;one-genuine-zola-bug&quot;&gt;One genuine Zola bug&lt;/h2&gt;
+&lt;p&gt;After the theme compiled, feeds still crashed. Zola 0.23&#39;s &lt;strong&gt;built-in&lt;/strong&gt; &lt;code&gt;rss.xml&lt;/code&gt; appears to read &lt;code&gt;section.title&lt;/code&gt; without guarding whether &lt;code&gt;section&lt;/code&gt; is defined — on a taxonomy or a feed with no backing section, that&#39;s an undefined-variable error. &lt;code&gt;atom.xml&lt;/code&gt; guards it; &lt;code&gt;rss.xml&lt;/code&gt; doesn&#39;t. Not a theme problem, a shipped bug.&lt;/p&gt;
+&lt;p&gt;The fix is a theme-level override: drop a corrected &lt;code&gt;rss.xml&lt;/code&gt; into the theme&#39;s &lt;code&gt;templates/&lt;/code&gt;, add the missing guard, and Zola prefers it over its built-in. Feeds restored, no fork of Zola required.&lt;/p&gt;
+&lt;h2 id=&quot;the-scoreboard&quot;&gt;The scoreboard&lt;/h2&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Change&lt;/th&gt;&lt;th&gt;Count&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;{% macro %}&lt;/code&gt; → &lt;code&gt;{% component %}&lt;/code&gt;&lt;/td&gt;&lt;td&gt;11, across 5 files&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Call sites rewritten to &lt;code&gt;{{&amp;lt;fn .../&amp;gt;}}&lt;/code&gt;&lt;/td&gt;&lt;td&gt;6 templates&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Shortcodes → components&lt;/td&gt;&lt;td&gt;&lt;code&gt;figure&lt;/code&gt;, &lt;code&gt;image&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Test syntax fixed&lt;/td&gt;&lt;td&gt;&lt;code&gt;starting_with(pat=...)&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Zola built-in bugs worked around&lt;/td&gt;&lt;td&gt;1 (&lt;code&gt;rss.xml&lt;/code&gt; guard)&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;p&gt;Build time after the port: &lt;strong&gt;~460 ms&lt;/strong&gt; for the full site. The single-binary promise still holds — the engine underneath it just moved.&lt;/p&gt;
+&lt;p&gt;Migration guides referenced: &lt;a rel=&quot;external&quot; href=&quot;https://github.com/Keats/tera/blob/master/MIGRATION.md&quot;&gt;Tera v1→v2&lt;/a&gt; (canonical — Tera&#39;s own docs site is still offline), &lt;a rel=&quot;external&quot; href=&quot;https://github.com/getzola/zola/blob/master/CHANGELOG.md&quot;&gt;Zola CHANGELOG&lt;/a&gt;.&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>From Commits to Drafts: An Automated Editorial Workflow</title>
+        <published>2026-08-06T00:04:00+00:00</published>
+        <updated>2026-08-06T00:04:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/editorial-workflow-commits-to-drafts/"/>
+        <id>https://cawa0505.github.io/editorial-workflow-commits-to-drafts/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/editorial-workflow-commits-to-drafts/">&lt;p&gt;Writing a dev blog dies the same way every time: the code ships, the intent to write it up survives about a week, then the context is gone. So this site does not start from a blank page. It starts from what already happened in the repos — commits and milestones — and turns that into a draft an editor can shape.&lt;/p&gt;
+&lt;p&gt;The rule that makes it bearable: &lt;strong&gt;the machine writes drafts, a human publishes.&lt;/strong&gt; No draft ever goes live on its own.&lt;/p&gt;
+&lt;h2 id=&quot;the-pipeline&quot;&gt;The pipeline&lt;/h2&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;GitHub API (commits + milestones)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;scripts/ingest.cjs ── enrichment (local only) ──┐&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        │                                        ├─ graphify extract: measured on the repo&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        ▼                                        │   (node/edge counts + timing, into the post)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;content/drafts/YYYY-MM-DD-&amp;lt;repo&amp;gt;-digest.md       └─ draco /v1/scrape: fetch source URLs,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;   (draft = true, not published)                     summarize into the post&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;human editing: edit → move out of drafts → drop the draft flag → push&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;GitHub Pages&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;code&gt;scripts/ingest.cjs&lt;/code&gt; pulls recent activity from the GitHub API and writes one Markdown draft per repo. Everything downstream is either editing or deploying.&lt;/p&gt;
+&lt;h2 id=&quot;when-it-runs&quot;&gt;When it runs&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Schedule:&lt;/strong&gt; every Monday 02:00 UTC.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Manual:&lt;/strong&gt; &lt;code&gt;gh workflow run ingest.yml --repo cawa0505/cawa0505.github.io&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Zero noise:&lt;/strong&gt; a repo with no new commits or milestones produces no draft. Quiet weeks stay quiet.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;what-a-draft-contains&quot;&gt;What a draft contains&lt;/h2&gt;
+&lt;p&gt;At most one digest per repo per run, dropped into &lt;code&gt;content/drafts/&lt;/code&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;A summary of the last &lt;code&gt;INGEST_DAYS&lt;/code&gt; (default 7) of commits, with merge/chore/bump noise filtered out.&lt;/li&gt;
+&lt;li&gt;Open milestones, rendered as a roadmap block.&lt;/li&gt;
+&lt;li&gt;When run locally, two enrichment passes the CI runner can&#39;t do:
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;graphify&lt;/strong&gt; — runs &lt;code&gt;graphify extract&lt;/code&gt; against the local checkout and folds the real node/edge counts and timing into the draft. Local paths live in &lt;code&gt;scripts/local.json&lt;/code&gt;, which is gitignored so nothing about the machine leaks.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;draco&lt;/strong&gt; — when &lt;code&gt;DRACO_URL&lt;/code&gt; is set, scrapes the URLs listed under a repo&#39;s &lt;code&gt;sources&lt;/code&gt; and summarizes them inline.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;If those tools aren&#39;t reachable — which is always the case on a CI runner — the enrichment is skipped, not failed. The draft still gets written.&lt;/p&gt;
+&lt;h2 id=&quot;publishing-the-editorial-gate&quot;&gt;Publishing: the editorial gate&lt;/h2&gt;
+&lt;p&gt;This is the only manual step, and it&#39;s the point:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Edit the draft — fix the title, pick the commits worth keeping, add the context the machine can&#39;t know.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;git mv content/drafts/X.md content/X.md&lt;/code&gt; — articles live at the root of &lt;code&gt;content/&lt;/code&gt;, the Terminimal convention.&lt;/li&gt;
+&lt;li&gt;Remove &lt;code&gt;draft = true&lt;/code&gt; from the front matter and set a real date.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;git push&lt;/code&gt; — the site builds and deploys.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Everything before step 1 is disposable. The draft is a starting point, never the product.&lt;/p&gt;
+&lt;h2 id=&quot;configuration&quot;&gt;Configuration&lt;/h2&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;File / env&lt;/th&gt;&lt;th&gt;Purpose&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;scripts/repos.json&lt;/code&gt;&lt;/td&gt;&lt;td&gt;Watched repos, each with a &lt;code&gt;lang&lt;/code&gt; tag and optional &lt;code&gt;sources&lt;/code&gt; (draco URL list).&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;scripts/local.json&lt;/code&gt;&lt;/td&gt;&lt;td&gt;Local checkout paths (&lt;code&gt;local_path&lt;/code&gt;). Gitignored.&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;GH_TOKEN&lt;/code&gt;&lt;/td&gt;&lt;td&gt;GitHub API auth. CI uses &lt;code&gt;secrets.GITHUB_TOKEN&lt;/code&gt;.&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;INGEST_DAYS&lt;/code&gt;&lt;/td&gt;&lt;td&gt;Lookback window in days. Default 7.&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;DRACO_URL&lt;/code&gt;&lt;/td&gt;&lt;td&gt;draco daemon URL. Enables scrape enrichment when set.&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;p&gt;The whole thing is deliberately dumb: pull activity, write a draft, let a person decide. The automation removes the blank page, not the judgment.&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Dogfooding: Graphify Extracts Its Own Codebase</title>
+        <published>2026-08-06T00:03:00+00:00</published>
+        <updated>2026-08-06T00:03:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/dogfooding-graphify-extracts-its-own-codebase/"/>
+        <id>https://cawa0505.github.io/dogfooding-graphify-extracts-its-own-codebase/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/dogfooding-graphify-extracts-its-own-codebase/">&lt;p&gt;The best test of a codebase-graph tool is its own codebase. &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify&lt;/a&gt; doesn&#39;t just ship graphs for other repos — we run it on itself in CI and in this article. Measured just now, on the project&#39;s own source:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;$ graphify extract .&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Successfully extracted graph to graphify-out/graph.toon (nodes: 225, edges: 750)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Elapsed (wall clock): 0.25 s   (second run: 0.12 s)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Maximum resident set size: ~17 MB&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;225 nodes, 750 edges, one quarter of a second, less RAM than a browser tab. That&#39;s the whole promise of the Rust rewrite (&lt;a href=&quot;/26x-faster-rewriting-the-codebase-grapher-in-rust/&quot;&gt;part 2&lt;/a&gt;) in one command line.&lt;/p&gt;
+&lt;h2 id=&quot;what-the-graph-looks-like&quot;&gt;What the graph looks like&lt;/h2&gt;
+&lt;p&gt;The workspace is split into focused crates, and the graph shows it:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;graphify-core&lt;/strong&gt; — AST parsing and the graph data model&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-llm&lt;/strong&gt; — the semantic pass and rate-limit handling (&lt;code&gt;AutoRotatePipeline&lt;/code&gt; lives at &lt;code&gt;graphify-llm/src/pipeline.rs:9&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-cli&lt;/strong&gt; — &lt;code&gt;extract&lt;/code&gt;, &lt;code&gt;query&lt;/code&gt;, &lt;code&gt;path&lt;/code&gt;, &lt;code&gt;index&lt;/code&gt;, &lt;code&gt;tui&lt;/code&gt;, &lt;code&gt;install-skill&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-mcp&lt;/strong&gt; — the &lt;a rel=&quot;external&quot; href=&quot;https://modelcontextprotocol.io&quot;&gt;Model Context Protocol&lt;/a&gt; server so assistants query the graph directly&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-out&lt;/strong&gt; — the &lt;code&gt;.toon&lt;/code&gt; format crate&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;querying-it&quot;&gt;Querying it&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;query&lt;/code&gt; and &lt;code&gt;path&lt;/code&gt; work on the extracted graph, so an assistant (or a human) can ask structural questions without reading the whole repo:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;$ graphify query &amp;quot;./graphify-llm/src/pipeline.rs:struct:AutoRotatePipeline&amp;quot; --depth 1&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;...returns the node with its neighbors — who calls what, where the struct starts (&lt;code&gt;pipeline.rs:9&lt;/code&gt;), what module it belongs to. &lt;code&gt;graphify path A B&lt;/code&gt; answers &quot;how do these two subsystems connect?&quot;&lt;/p&gt;
+&lt;h2 id=&quot;why-dogfooding-matters&quot;&gt;Why dogfooding matters&lt;/h2&gt;
+&lt;p&gt;Three things running graphify on itself catches, that manual docs would miss:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Extraction must be fast enough to feel instant&lt;/strong&gt; — the TUI re-extracts live as you navigate.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;The MCP server must actually answer&lt;/strong&gt; — we use it while developing, so a broken query path is a broken day.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;The graph must match reality&lt;/strong&gt; — the crate split above is verified by the graph, not by prose.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Graphify is open source. If you build AI agents that work across codebases, this is what they see when they look at a repo.&lt;/p&gt;
+&lt;p&gt;→ &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify on GitHub&lt;/a&gt;&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Archive</title>
+        <published>2026-08-06T00:00:00+00:00</published>
+        <updated>2026-08-06T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/archive/"/>
+        <id>https://cawa0505.github.io/archive/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/archive/"></content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>OpenDocuments: A Self-Hosted RAG Platform That Fits in a Single Binary</title>
+        <published>2026-08-06T00:00:00+00:00</published>
+        <updated>2026-08-06T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/opendocuments-self-hosted-rag-single-binary/"/>
+        <id>https://cawa0505.github.io/opendocuments-self-hosted-rag-single-binary/</id>
+        
+        <summary type="html">&lt;p&gt;OpenDocuments is a self-hosted RAG platform: point it at a folder of PDFs, DOCX, XLSX, Markdown files or web pages, and it builds an AI-searchable knowledge base with cited answers. It ships as one Rust binary that embeds both the Axum API server and the React WebUI via &lt;code&gt;rust-embed&lt;/code&gt; — no Node runtime, no external assets, nothing to install besides the executable.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>26× Faster: Rewriting the Codebase Grapher in Rust</title>
+        <published>2026-08-05T00:02:00+00:00</published>
+        <updated>2026-08-05T00:02:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/26x-faster-rewriting-the-codebase-grapher-in-rust/"/>
+        <id>https://cawa0505.github.io/26x-faster-rewriting-the-codebase-grapher-in-rust/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/26x-faster-rewriting-the-codebase-grapher-in-rust/">&lt;p&gt;The Python prototype of &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify&lt;/a&gt; was reliable — 429 auto-rotation and provider failover meant it kept working under real rate limits (&lt;a href=&quot;/rate-limits-429-auto-rotation/&quot;&gt;part 1&lt;/a&gt;). But it was slow, and it shipped a whole environment.&lt;/p&gt;
+&lt;p&gt;The numbers that decided the rewrite:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;420 ms&lt;/strong&gt; to extract a benchmark repo of 110 source files / 422 edges — in Python&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;16 ms&lt;/strong&gt; for the same extraction — in Rust&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;26.25×&lt;/strong&gt; faster, measured on the same machine in the repo&#39;s own benchmark&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;why-rust-won&quot;&gt;Why Rust won&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Rayon parallelism, not threads by hand.&lt;/strong&gt; Source files are independent until the graph is linked, so extraction parallelizes across cores with Rayon and gets a near-linear speedup. The Python version was single-threaded — that alone was most of the gap.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;petgraph with arena pre-allocation.&lt;/strong&gt; Node and edge storage is a flat arena allocated up front for the expected size, so graph construction avoids per-node allocation churn. The graph structure is the product; making it cheap to build is the whole game.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;A binary, not an environment.&lt;/strong&gt; The Python version needed a multi-GB interpreter + dependency stack on every machine that ran it. The Rust release build is a single static binary you drop anywhere — which is what made a CLI and TUI practical.&lt;/p&gt;
+&lt;h2 id=&quot;the-tui-was-a-side-effect-of-going-native&quot;&gt;The TUI was a side effect of going native&lt;/h2&gt;
+&lt;p&gt;Once the core was a fast library, the interactive front-end stopped being a web app question and became a terminal question:&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/graphify-tui-demo.gif&quot; alt=&quot;graphify TUI demo&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;Because extraction takes milliseconds, the TUI can re-extract live and re-render the graph as you navigate — something an HTTP round-trip to a Python service could never feel like.&lt;/p&gt;
+&lt;h2 id=&quot;tokens-are-the-real-currency&quot;&gt;Tokens are the real currency&lt;/h2&gt;
+&lt;p&gt;For AI assistants, the output format matters as much as speed. The Rust version emits a compact columnar &lt;code&gt;.toon&lt;/code&gt; (Token-Oriented Object Notation) text format instead of JSON — 74 KB vs 185 KB for the same graph (−60% tokens).&lt;/p&gt;
+&lt;p&gt;Two phases in, the tool is reliable and fast. &lt;a href=&quot;/dogfooding-graphify-extracts-its-own-codebase/&quot;&gt;Part 3: it extracts its own codebase&lt;/a&gt; — and the numbers are real.&lt;/p&gt;
+&lt;p&gt;→ &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify on GitHub&lt;/a&gt;&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Rate Limits Are Runtime Reality: Building 429 Auto-Rotation into a Codebase Grapher</title>
+        <published>2026-08-04T00:01:00+00:00</published>
+        <updated>2026-08-04T00:01:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/rate-limits-429-auto-rotation/"/>
+        <id>https://cawa0505.github.io/rate-limits-429-auto-rotation/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/rate-limits-429-auto-rotation/">&lt;p&gt;AI agents can&#39;t navigate a codebase they can&#39;t see. Give an agent a plain file tree and it will guess; give it a semantic graph of symbols, imports and call relationships, and it can plan before it reads. That&#39;s the problem &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify&lt;/a&gt; exists to solve: turn a repository into a structural graph an LLM can reason over.&lt;/p&gt;
+&lt;p&gt;This post is the first of three about how it was built — reliability first, performance second, dogfooding third.&lt;/p&gt;
+&lt;h2 id=&quot;phase-1-the-python-prototype&quot;&gt;Phase 1: the Python prototype&lt;/h2&gt;
+&lt;p&gt;The first version was a Python toolchain: parse source into AST nodes, run a semantic pass over the graph with an LLM, emit a graph file the assistant consumes. It worked. Then it hit production reality: cloud LLM rate limits.&lt;/p&gt;
+&lt;p&gt;Calling a public API at any concurrency, 429s stop being an exception and become a steady-state signal. The naive fix — retry with sleep — makes the pipeline &lt;em&gt;predictable&lt;/em&gt; in the worst way: every key exhausted means a serial pause, and every pause adds seconds to an interactive flow.&lt;/p&gt;
+&lt;h2 id=&quot;429-auto-rotation-the-design&quot;&gt;429 auto-rotation: the design&lt;/h2&gt;
+&lt;p&gt;The Python version&#39;s answer was a rotation layer, later carried into the Rust rewrite as &lt;code&gt;AutoRotatePipeline&lt;/code&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Multi-key rotation&lt;/strong&gt; — keys are pooled and picked with an atomic modulo counter. Rotation is O(1), thread-safe, and never blocks on a mutex around the choice itself.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Zero-sleep retry&lt;/strong&gt; — on a 429 the pipeline rotates to the next key immediately instead of sleeping. The cost of a busy rotate is far lower than a serial sleep, and with enough keys in the pool the pipeline keeps moving.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Provider failover&lt;/strong&gt; — the chain degrades deliberately: cloud keys first, then a local fallback (&lt;a rel=&quot;external&quot; href=&quot;https://ollama.com&quot;&gt;Ollama&lt;/a&gt; with a small local model). The pipeline never hard-stops on a cloud outage; it degrades to slower local inference instead of failing.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The lesson that shaped the whole project: &lt;strong&gt;rate limits are not an edge case, they are a runtime condition.&lt;/strong&gt; Any tool that hits LLM APIs and doesn&#39;t model rotation, failover and degradation as first-class concerns will fall over exactly when a user needs it.&lt;/p&gt;
+&lt;p&gt;Phase 1 made graphify &lt;em&gt;reliable&lt;/em&gt;. Phase 2, the Rust rewrite, made it &lt;em&gt;fast&lt;/em&gt; — &lt;a href=&quot;/26x-faster-rewriting-the-codebase-grapher-in-rust/&quot;&gt;read it here&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;→ &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify on GitHub&lt;/a&gt;&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>opencode-speak-human-tw: A Plugin That Strips the AI Smell Out of Writing</title>
+        <published>2026-08-03T00:00:00+00:00</published>
+        <updated>2026-08-03T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/opencode-speak-human-tw-de-ai-plugin/"/>
+        <id>https://cawa0505.github.io/opencode-speak-human-tw-de-ai-plugin/</id>
+        
+        <summary type="html">&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/opencode-speak-human-tw&quot;&gt;opencode-speak-human-tw&lt;/a&gt; is an OpenCode plugin port of Raymond Hou&#39;s &lt;a rel=&quot;external&quot; href=&quot;https://github.com/Raymondhou0917/speak-human-tw&quot;&gt;speak-human-tw&lt;/a&gt; — a rewriting skill that removes AI-flavored phrasing, mainland-China vocabulary and half-width punctuation from Traditional Chinese copy, so the result reads like a person wrote it.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>draco: A Firecrawl Alternative Without the Browser Boot</title>
+        <published>2026-08-02T00:00:00+00:00</published>
+        <updated>2026-08-02T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/draco-firecrawl-alternative-without-browser-boot/"/>
+        <id>https://cawa0505.github.io/draco-firecrawl-alternative-without-browser-boot/</id>
+        
+        <summary type="html">&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/draco&quot;&gt;draco&lt;/a&gt; is a native-Rust web scraper designed as an MCP server. Point it at a URL and get clean Markdown + metadata back — no Node, no headless-Chrome fleet, no per-request browser boot. It is positioned as the lightweight half of a scrape stack: use draco for content, structured data and DOM interaction; escalate to a real browser only when the task needs layout, screenshots or downloads.&lt;/p&gt;
+&lt;p&gt;It is a fork of &lt;a rel=&quot;external&quot; href=&quot;https://github.com/0xchasercat/draco&quot;&gt;0xchasercat/draco&lt;/a&gt; — the MCP ergonomics layer and anti-blocking engine described below are fork work, layered on the upstream core. We built what we needed for our own agent workflows and share it back; the upstream author gets full credit for the base.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>ax-mcp: A Remote Scraping MCP Server over Streamable HTTP</title>
+        <published>2026-08-01T00:00:00+00:00</published>
+        <updated>2026-08-01T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/ax-mcp-remote-scraping-over-streamable-http/"/>
+        <id>https://cawa0505.github.io/ax-mcp-remote-scraping-over-streamable-http/</id>
+        
+        <summary type="html">&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/ax-mcp&quot;&gt;ax-mcp&lt;/a&gt; is a small Node.js MCP server that wraps &lt;a rel=&quot;external&quot; href=&quot;https://github.com/yusukebe/ax&quot;&gt;&lt;code&gt;ax&lt;/code&gt;&lt;/a&gt; — &quot;curl for the AI era&quot; — and exposes it as a &lt;strong&gt;remote&lt;/strong&gt; MCP endpoint. The point is transport: instead of SSE long-connections that die across reverse proxies, the server is bridged through &lt;code&gt;supergateway&lt;/code&gt; to Streamable HTTP (&lt;code&gt;POST /mcp&lt;/code&gt;), the native shape of OpenCode&#39;s &lt;code&gt;type: &quot;remote&quot;&lt;/code&gt;.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Code Relay MCP: Early Concept for Cross-Session State Handoff</title>
+        <published>2026-07-31T00:00:00+00:00</published>
+        <updated>2026-07-31T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/code-relay-mcp-cross-session-state-handoff/"/>
+        <id>https://cawa0505.github.io/code-relay-mcp-cross-session-state-handoff/</id>
+        
+        <summary type="html">&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Migration note&lt;/strong&gt;: The repository originally linked here as &lt;code&gt;code-relay-mcp&lt;/code&gt; has been renamed to &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-plugin-handoff&quot;&gt;graphify-plugin-handoff&lt;/a&gt; and re-architected as a Graphify embedded plugin rather than a standalone MCP server. This article is preserved as the early concept write-up. For the actual implementation, see &lt;a href=&quot;/graphify-plugin-handoff-cross-session-state/&quot;&gt;Relay: Cross-session State Handoff as a Graphify Plugin&lt;/a&gt;.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The original concept proposed a native-Rust MCP server that manages cross-session, cross-repository handoffs for coding agents. It was envisioned as the engine behind the code-relay workflow, replacing the old Node.js &lt;code&gt;@jimmyyen/opencode-code-relay-plugin&lt;/code&gt; while keeping 100% backward compatibility — existing workflows and prompts would keep working, just faster underneath.&lt;/p&gt;</summary>
+        
+    </entry>
+</feed>

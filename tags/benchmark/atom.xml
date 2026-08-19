@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - benchmark</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/benchmark/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-19T06:47:43+00:00</updated>
+    <id>https://cawa0505.github.io/tags/benchmark/atom.xml</id>
+    <entry xml:lang="en">
+        <title>Local LLM-as-a-Verifier on a 16GB ROCm GPU: Real Benchmark Data</title>
+        <published>2026-08-19T06:47:43+00:00</published>
+        <updated>2026-08-19T06:47:43+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/llm-as-a-verifier-benchmark-rocm-16gb/"/>
+        <id>https://cawa0505.github.io/llm-as-a-verifier-benchmark-rocm-16gb/</id>
+        
+        <summary type="html">&lt;p&gt;&lt;strong&gt;TL;DR:&lt;/strong&gt; I benchmarked the local LLM-as-a-Verifier setup running Qwen3.5-9B (Q4_K) on a single 16GB AMD GPU via ROCm. The verifier processes a code comparison in ~0.5–2s at 66% cache hit rate, correctly scoring valid code changes at 1.0 and invalid ones at 0.0–0.14. The 16GB card handles the 9B model comfortably, leaving headroom for other services.&lt;/p&gt;
+&lt;p&gt;This article is a follow-up to the &lt;a rel=&quot;external&quot; href=&quot;https://cawa0505.github.io/llm-as-a-verifier-local-ai-guard/&quot;&gt;architecture overview&lt;/a&gt; and the &lt;a rel=&quot;external&quot; href=&quot;https://cawa0505.github.io/packaging-llm-as-a-verifier-docker/&quot;&gt;Docker packaging guide&lt;/a&gt;. Those articles described the &lt;em&gt;what&lt;/em&gt; and &lt;em&gt;how&lt;/em&gt; — this one provides the measured &lt;em&gt;how well&lt;/em&gt;.&lt;/p&gt;</summary>
+        
+    </entry>
+</feed>

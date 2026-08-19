@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - plugin</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/plugin/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-09T18:44:03+08:00</updated>
+    <id>https://cawa0505.github.io/tags/plugin/atom.xml</id>
+    <entry xml:lang="en">
+        <title>Relay: Cross-session State Handoff as a Graphify Plugin</title>
+        <published>2026-08-09T18:44:03+08:00</published>
+        <updated>2026-08-09T18:44:03+08:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/graphify-plugin-handoff-cross-session-state/"/>
+        <id>https://cawa0505.github.io/graphify-plugin-handoff-cross-session-state/</id>
+        
+        <summary type="html">&lt;p&gt;The repository originally published as &lt;a href=&quot;/code-relay-mcp-cross-session-state-handoff/&quot;&gt;code-relay-mcp&lt;/a&gt; has been renamed to &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-plugin-handoff&quot;&gt;graphify-plugin-handoff&lt;/a&gt; and re-architected from a standalone Rust MCP server into a Graphify &lt;strong&gt;embedded plugin&lt;/strong&gt;. This article documents the actual implementation.&lt;/p&gt;</summary>
+        
+    </entry>
+</feed>

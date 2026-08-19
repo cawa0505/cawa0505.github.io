@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - markdown</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/markdown/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-08T00:00:00+00:00</updated>
+    <id>https://cawa0505.github.io/tags/markdown/atom.xml</id>
+    <entry xml:lang="en">
+        <title>When a Markdown Editor Remembers LOGO</title>
+        <published>2026-08-08T00:00:00+00:00</published>
+        <updated>2026-08-08T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/zago-logo-in-a-markdown-editor/"/>
+        <id>https://cawa0505.github.io/zago-logo-in-a-markdown-editor/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/zago-logo-in-a-markdown-editor/">&lt;p&gt;There is a particular kind of software nostalgia that still earns its place: LOGO&#39;s turtle, reduced to movement, repetition, and a trail left behind.&lt;/p&gt;
+&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble/zago&quot;&gt;zago&lt;/a&gt; brings that idea into a terminal Markdown editor. It is written by &lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble&quot;&gt;zonble&lt;/a&gt;, and the interesting part is not a separate graphics window. The text buffer itself becomes the canvas.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/zago-logo-turtle.gif&quot; alt=&quot;A zago LOGO turtle drawing recorded with Tapedeck&quot; /&gt;&lt;/p&gt;
+&lt;h2 id=&quot;the-pen-is-a-text-buffer-mode&quot;&gt;The pen is a text-buffer mode&lt;/h2&gt;
+&lt;p&gt;zago&#39;s Editor LOGO uses the familiar &lt;code&gt;PD&lt;/code&gt; and &lt;code&gt;PU&lt;/code&gt; commands:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;PD&lt;/code&gt; — pen down; movement leaves line-drawing characters in the buffer.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;PU&lt;/code&gt; — pen up; movement becomes safe navigation again.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;FD&lt;/code&gt; — move forward in the current direction.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;RT&lt;/code&gt; and &lt;code&gt;LT&lt;/code&gt; — turn right or left by 90 degrees.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;When the pen is down, zago does more than print independent characters. It merges horizontal and vertical strokes into Unicode junctions such as &lt;code&gt;┌&lt;/code&gt;, &lt;code&gt;┐&lt;/code&gt;, &lt;code&gt;└&lt;/code&gt;, &lt;code&gt;┘&lt;/code&gt;, and &lt;code&gt;┼&lt;/code&gt;. That makes a sequence of cursor movements behave like a small diagram editor while the result remains plain text.&lt;/p&gt;
+&lt;p&gt;The default is deliberately safe: LOGO execution starts with the pen up. A macro has to opt into drawing explicitly, and a finished drawing should lift the pen again.&lt;/p&gt;
+&lt;h2 id=&quot;a-small-polygon-instead-of-box&quot;&gt;A small polygon instead of &lt;code&gt;BOX&lt;/code&gt;&lt;/h2&gt;
+&lt;p&gt;The official pen-mode guide already demonstrates a square with &lt;code&gt;BOX&lt;/code&gt;-like movement. For this recording I used a stepped octagon so the demo shows turtle movement without repeating that example:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;logo&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;PD FD 16 RT 90 FD 8 RT 90 FD 6 RT 90 FD 3&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;RT 90 FD 4 RT 90 FD 3 RT 90 FD 6 RT 90 FD 8 PU&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;zago&#39;s turns are 90-degree turns, so this is not a graphical regular octagon. It is an orthogonal text polygon: a sequence of straight moves and right-angle turns that closes back on itself. The shape is less important than the mechanism — the turtle moves, the buffer records the path, and junction characters are fused as the path changes direction.&lt;/p&gt;
+&lt;p&gt;The same command can be tested without opening the editor:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;zago&lt;/span&gt;&lt;span style=&quot;color: #BD93F9;&quot;&gt; -e&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt; &amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt;PD FD 16 RT 90 FD 8 RT 90 FD 6 RT 90 FD 3 RT 90 FD 4 RT 90 FD 3 RT 90 FD 6 RT 90 FD 8 PU&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That headless mode is useful for checking a drawing before putting it into an interactive recording. It also makes the output easy to inspect in a shell or pipeline.&lt;/p&gt;
+&lt;h2 id=&quot;recording-the-interaction-instead-of-recording-it-again&quot;&gt;Recording the interaction instead of recording it again&lt;/h2&gt;
+&lt;p&gt;I used &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck&lt;/a&gt; to turn the terminal session into a repeatable &lt;code&gt;.roll&lt;/code&gt; script. The script is named &lt;code&gt;examples/tui_zago_logo_turtle.roll&lt;/code&gt; in the Tapedeck repository and describes the boring parts explicitly:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Set Engine Auto&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Set Output &amp;quot;zago_logo_turtle.gif&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Set FPS 15&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;...&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Escape&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Type &amp;quot;PD FD 16 RT 90 FD 8 RT 90 FD 6 RT 90 FD 3 RT 90 FD 4 RT 90 FD 3 RT 90 FD 6 RT 90 FD 8 PU&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Enter&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;code&gt;tapedeck run --dry-run examples/tui_zago_logo_turtle.roll&lt;/code&gt; passes the parser and selects the VHS engine. Running the script produced a &lt;code&gt;1200×600&lt;/code&gt; GIF with 251 frames in the local recording environment. The output is a terminal capture, not a claim that zago opens a graphical turtle canvas.&lt;/p&gt;
+&lt;p&gt;That distinction matters. zago owns the editor and the LOGO language; Tapedeck only makes the interaction reproducible. If the recording needs a new shape later, the script is the source of the demo instead of a sequence of manually timed keystrokes.&lt;/p&gt;
+&lt;h2 id=&quot;a-small-downstream-contribution&quot;&gt;A small downstream contribution&lt;/h2&gt;
+&lt;p&gt;I also maintain &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/aur-zago&quot;&gt;aur-zago&lt;/a&gt;, an Arch Linux packaging project for zago. The intended AUR package name is &lt;code&gt;zago-bin&lt;/code&gt;; it is not published in the AUR yet because new account registration is currently unavailable to me. This is downstream work, not zago development. I packaged it because I am a fan of zonble&#39;s project and wanted a convenient Arch installation path; the zago design, implementation, and authorship remain zonble&#39;s.&lt;/p&gt;
+&lt;p&gt;That boundary is worth stating plainly when writing about tools one did not create. Packaging, recording, and documenting a project can be useful without turning into an ownership claim.&lt;/p&gt;
+&lt;h2 id=&quot;sources&quot;&gt;Sources&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble/zago/blob/main/README.md&quot;&gt;zago README&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble/zago/blob/main/docs/logo.md&quot;&gt;Editor LOGO documentation&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble/zago/blob/main/docs/logo_pen_mode.md&quot;&gt;Pen mode and turtle drawing&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/aur-zago&quot;&gt;aur-zago&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+        
+    </entry>
+</feed>

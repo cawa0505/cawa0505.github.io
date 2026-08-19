@@ -1,0 +1,427 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - Rust</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/rust/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-19T05:55:10+00:00</updated>
+    <id>https://cawa0505.github.io/tags/rust/atom.xml</id>
+    <entry xml:lang="en">
+        <title>Poor Man&#39;s LLM-as-a-Verifier: 16GB GPU + ROCm for Zero-Cost Local Agent Guardrails</title>
+        <published>2026-08-19T05:55:10+00:00</published>
+        <updated>2026-08-19T05:55:10+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/llm-as-a-verifier-local-ai-guard/"/>
+        <id>https://cawa0505.github.io/llm-as-a-verifier-local-ai-guard/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/llm-as-a-verifier-local-ai-guard/">&lt;h1 id=&quot;poor-man-s-llm-as-a-verifier-16gb-gpu-rocm-for-zero-cost-local-agent-guardrails&quot;&gt;Poor Man&#39;s LLM-as-a-Verifier: 16GB GPU + ROCm for Zero-Cost Local Agent Guardrails&lt;/h1&gt;
+&lt;p&gt;&lt;strong&gt;TL;DR:&lt;/strong&gt; This article is for developers who don&#39;t want to burn money on cloud API bills and are afraid of autonomous coding agents blindly refactoring their codebase into oblivion. We&#39;ll build a local, zero-cost AI exoskeleton with a 16GB AMD GPU, Linux ROCm (HIP) acceleration, and a deterministic 2PC guard rail written in Rust — matching the spec of production-grade PRM (Process Reward Model) systems.&lt;/p&gt;
+&lt;h2 id=&quot;1-the-pain-agent-fever-meets-bill-shock-and-code-destruction&quot;&gt;1. The Pain: Agent Fever Meets Bill Shock and Code Destruction&lt;/h2&gt;
+&lt;p&gt;Autonomous coding agents (OpenCode, Claude Code, etc.) have fundamentally changed how we write software. But they come with two nightmares:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Token black hole &amp;amp; API bill shock&lt;/strong&gt;: To maintain code quality, agents need extensive self-reflection, Best-of-N comparisons, and long-chain repair. A few rounds of dialogue later, your cloud API bill is through the roof.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Non-determinism&lt;/strong&gt;: An agent without guardrails is a race car without a steering wheel — it might silently mutate global interfaces, corrupt your DB schema, or hallucinate syntax errors.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;The fix&lt;/strong&gt;: We need a Verifier (process supervisor). But production papers routinely use A100 clusters with vLLM pre-allocating tens of GB of VRAM — costs most developers can&#39;t justify. We need a poor man&#39;s Process Supervision system that runs smoothly on a single 16GB consumer GPU.&lt;/p&gt;
+&lt;h2 id=&quot;2-hardware-driver-layer-why-16gb-amd-rocm-hip&quot;&gt;2. Hardware &amp;amp; Driver Layer: Why 16GB AMD + ROCm (HIP)?&lt;/h2&gt;
+&lt;p&gt;On a Homelab / Linux (CachyOS) setup, pairing a Radeon RX 9060 XT 16GB with the ROCm backend is the sweet spot for cost-performance:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;HIP matrix acceleration &amp;amp; VRAM throughput&lt;/strong&gt;: ROCm&#39;s native HIP acceleration lets 16GB VRAM comfortably handle Qwen3.5-9B with mmproj (code semantics + multimodal vision).&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Escaping the vLLM VRAM trap&lt;/strong&gt;: vLLM&#39;s 90% pre-allocation policy is a disaster on a single multi-tasking machine. Switch to the ROCm build of llama-server (GGUF quantization). Model weights consume only 5–9 GB of VRAM, leaving room for dynamic KV cache allocation while the host runs other services.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Zero API cost&lt;/strong&gt;: Triggering 10,000 &lt;code&gt;/v1/directed&lt;/code&gt; scoring calls through the 2PC (two-phase commit) gate costs nothing more than pocket change in electricity. Token anxiety gone.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;3-architectural-philosophy-the-tri-layer-deterministic-harness&quot;&gt;3. Architectural Philosophy: The Tri-Layer Deterministic Harness&lt;/h2&gt;
+&lt;p&gt;The core idea: &lt;strong&gt;demote the LLM from a system-write-privileged executor to an intern who must submit legitimate proposals.&lt;/strong&gt;&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;┌────────────────────────────────────────────────────────────────────────┐&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│ omo-slim / OpenCode Orchestrator                                       │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;└───────────────────────────────────┬────────────────────────────────────┘&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;                                    │ 1. 2PC Proposal (Diff / AST Delta)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;                                    ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;┌────────────────────────────────────────────────────────────────────────┐&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│ guardrail-mcp (Deterministic 2PC Gateway)                              │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│                                                                        │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│  Track 1: Hard Guard (Rust / graphify-core AST structural check)       │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│  └── Millisecond short-circuit — syntax errors / violations rejected   │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│      instantly (0 VRAM usage)                                          │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│                                                                        │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│  Track 2: Soft Guard (Local multimodal semantic review)                │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;└───────────────────────────────────┬────────────────────────────────────┘&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;                                    │ 2. POST /v1/directed&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;                                    ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;┌────────────────────────────────────────────────────────────────────────┐&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│ docker-llm-as-a-verifier (Local ROCm Backend / llama-server)           │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│ └── Qwen3.5-9B with mmproj (GGUF)                   │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;└────────────────────────────────────────────────────────────────────────┘&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;graphify (AST &amp;amp; Context Manager)&lt;/strong&gt;: Written in Rust. Handles code topology analysis and dynamic token pruning — feeds only the minimal sub-graph with the highest information density to the agent.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;guardrail-mcp (State Machine &amp;amp; 2PC Gateway)&lt;/strong&gt;: An independent MCP guard. Enforces two-phase commit (Phase 1: Proposal → Phase 2: Guard Check → Issue commit_token).&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;docker-llm-as-a-verifier (PRM Evaluation Server)&lt;/strong&gt;: A Docker-packaged local review container. Accelerated by ROCm, providing fine-grained scoring.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;4-implementation-breakdown-rest-api-spec-aligned-with-production-prm&quot;&gt;4. Implementation Breakdown: REST API Spec Aligned with Production PRM&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;docker-llm-as-a-verifier&lt;/code&gt; exposes 7 complete REST API endpoints implementing high-level Process Supervision primitives:&lt;/p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Endpoint&lt;/th&gt;&lt;th&gt;Method&lt;/th&gt;&lt;th&gt;2PC Use Case&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/directed&lt;/code&gt;&lt;/td&gt;&lt;td&gt;POST&lt;/td&gt;&lt;td&gt;&lt;strong&gt;[Core]&lt;/strong&gt; Given the original task, compare old code A vs fixed code B, return Preference Score and accepted flag&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/select&lt;/code&gt;&lt;/td&gt;&lt;td&gt;POST&lt;/td&gt;&lt;td&gt;&lt;strong&gt;[Best-of-N]&lt;/strong&gt; Pick the highest-scoring, safest AST change from N agent-generated proposals&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/track&lt;/code&gt;&lt;/td&gt;&lt;td&gt;POST&lt;/td&gt;&lt;td&gt;&lt;strong&gt;[Trajectory Monitor]&lt;/strong&gt; Evaluate progress after each action. Short-circuit if the agent is making things worse&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/compare&lt;/code&gt;&lt;/td&gt;&lt;td&gt;POST&lt;/td&gt;&lt;td&gt;Quick A/B Testing: pairwise scoring&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/score-pairs&lt;/code&gt;&lt;/td&gt;&lt;td&gt;POST&lt;/td&gt;&lt;td&gt;Batch regression testing and evaluation&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/health&lt;/code&gt;&lt;/td&gt;&lt;td&gt;GET&lt;/td&gt;&lt;td&gt;System health check&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/usage&lt;/code&gt;&lt;/td&gt;&lt;td&gt;GET&lt;/td&gt;&lt;td&gt;Local token accumulation statistics&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;h2 id=&quot;5-real-world-closure-from-proposal-interception-to-micro-patching&quot;&gt;5. Real-World Closure: From Proposal Interception to Micro-Patching&lt;/h2&gt;
+&lt;p&gt;When the agent proposes a code change with hidden risks, the defensive closure works like this:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Coder Agent submits a change proposal.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;guardrail-mcp&lt;/code&gt; triggers Track 1: &lt;code&gt;graphify-core&lt;/code&gt; scans and detects an interface discontinuity.&lt;/li&gt;
+&lt;li&gt;If Track 1 passes, Track 2 fires: HTTP POST to the Docker &lt;code&gt;/v1/directed&lt;/code&gt; endpoint (Qwen3.5-9B with mmproj).&lt;/li&gt;
+&lt;li&gt;Verifier returns REJECTED with this payload:&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;json&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;  &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;status&lt;/span&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt;REJECTED&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;  &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;reason&lt;/span&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt;Signature mismatch on UserRepositoryInterface&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;  &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;ast_node_id&lt;/span&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt;Node#402&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/li&gt;
+&lt;li&gt;The orchestrator captures &lt;code&gt;ast_node_id&lt;/code&gt; and instructs the agent to perform a local micro-patch targeting only &lt;code&gt;Node#402&lt;/code&gt; — no full-file re-reads!&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;&lt;strong&gt;Dual verification bonus&lt;/strong&gt;: UI changes can be further validated by Qwen3.5-9B with mmproj reviewing Playwright rendering screenshots (Visual Guard), ensuring no layout breakage or CSS regressions.&lt;/p&gt;
+&lt;h2 id=&quot;6-conclusion-take-control-and-compute-back-to-the-edge&quot;&gt;6. Conclusion: Take Control and Compute Back to the Edge&lt;/h2&gt;
+&lt;p&gt;You don&#39;t need a hundred-thousand-dollar A100 cluster. You don&#39;t need to pay monthly tribute to cloud API giants. With a Rust-based deterministic graph, a 2PC state-machine guard, and an AMD ROCm-powered local multimodal verifier, we&#39;ve built a fully private, zero-leakage AI exoskeleton with production-grade PRM capability — all on a sub-$500 consumer GPU.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Open-source repositories:&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;2PC guard gate: &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/guardrail-mcp&quot;&gt;github.com/cawa0505/guardrail-mcp&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Local verifier container: &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/docker-llm-as-a-verifier&quot;&gt;github.com/cawa0505/docker-llm-as-a-verifier&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Our Pain with AI Coding Agents: Two Tools We Built to Stop Them from Breaking Things</title>
+        <published>2026-08-18T00:00:00+00:00</published>
+        <updated>2026-08-18T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/defensive-agent-architecture-graphify-statemachine/"/>
+        <id>https://cawa0505.github.io/defensive-agent-architecture-graphify-statemachine/</id>
+        
+        <summary type="html">&lt;iframe src=&quot;/defensive-agent-architecture-deck/&quot; width=&quot;100%&quot; height=&quot;500&quot; style=&quot;border:1px solid rgba(255,255,255,0.1); border-radius:12px; margin-bottom:32px;&quot; title=&quot;Defensive Agent Architecture slides&quot;&gt;&lt;/iframe&gt;
+&lt;p&gt;What&#39;s the biggest problem with using AI to write code? For us, it&#39;s not that the models aren&#39;t smart enough — it&#39;s that &lt;strong&gt;we can&#39;t trust them&lt;/strong&gt;.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;LLM tokens keep getting more expensive, but most of them go toward re-reading code structure the agent already saw.&lt;/li&gt;
+&lt;li&gt;The agent edits a file, the compiler screams, and it takes 3-4 rounds to get a clean compile.&lt;/li&gt;
+&lt;li&gt;Halfway through a task, context runs out. New session starts from scratch — everything is forgotten.&lt;/li&gt;
+&lt;li&gt;Sometimes broken code hits the filesystem before anyone notices.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;These are probably not unique to us. Our approach was to build two small tools — one for &lt;strong&gt;input cost&lt;/strong&gt;, one for &lt;strong&gt;operation safety&lt;/strong&gt; — connected to OpenCode via MCP. Each does exactly one thing.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Relay: Cross-session State Handoff as a Graphify Plugin</title>
+        <published>2026-08-09T18:44:03+08:00</published>
+        <updated>2026-08-09T18:44:03+08:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/graphify-plugin-handoff-cross-session-state/"/>
+        <id>https://cawa0505.github.io/graphify-plugin-handoff-cross-session-state/</id>
+        
+        <summary type="html">&lt;p&gt;The repository originally published as &lt;a href=&quot;/code-relay-mcp-cross-session-state-handoff/&quot;&gt;code-relay-mcp&lt;/a&gt; has been renamed to &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-plugin-handoff&quot;&gt;graphify-plugin-handoff&lt;/a&gt; and re-architected from a standalone Rust MCP server into a Graphify &lt;strong&gt;embedded plugin&lt;/strong&gt;. This article documents the actual implementation.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Graphify Plugin Architecture Roadmap</title>
+        <published>2026-08-09T04:55:00+08:00</published>
+        <updated>2026-08-09T04:55:00+08:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/graphify-plugin-architecture-roadmap/"/>
+        <id>https://cawa0505.github.io/graphify-plugin-architecture-roadmap/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/graphify-plugin-architecture-roadmap/">&lt;h2 id=&quot;overview&quot;&gt;Overview&lt;/h2&gt;
+&lt;p&gt;Graphify&#39;s plugin architecture follows a strict two-layer separation: &lt;strong&gt;Layer 1&lt;/strong&gt; (embedded v1 traits) is implemented, while &lt;strong&gt;Layer 2&lt;/strong&gt; (external SDK) remains a roadmap for third-party ecosystem development. This design keeps the core contract separate from the external plugin protocol while maintaining a clear evolution path.&lt;/p&gt;
+&lt;h2 id=&quot;implemented-embedded-v1-plugin-layer&quot;&gt;Implemented: Embedded v1 Plugin Layer&lt;/h2&gt;
+&lt;h3 id=&quot;core-contract&quot;&gt;Core Contract&lt;/h3&gt;
+&lt;p&gt;The v1 embedded plugin contract (&lt;code&gt;graphify-core/src/plugin.rs&lt;/code&gt;) defines a dependency-free trait using only &lt;code&gt;std&lt;/code&gt;. All embedded plugins implement:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;get_id(&amp;amp;self) -&amp;gt; &amp;amp;str&lt;/code&gt; — Unique plugin identifier (e.g., &lt;code&gt;&quot;graphify-plugin-handoff&quot;&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;bind(&amp;amp;mut self, ctx: WorkspaceContext)&lt;/code&gt; — Workspace context binding&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;get_workspace_key(&amp;amp;self) -&amp;gt; &amp;amp;str&lt;/code&gt; — Returns bound workspace key or empty string&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;sync_toon(&amp;amp;mut self, opt_toon: Option&amp;lt;Vec&amp;lt;u8&amp;gt;&amp;gt;) -&amp;gt; Vec&amp;lt;u8&amp;gt;&lt;/code&gt; — Passive sync (consumes .toon) or proactive sync (produces output)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;on_graph_updated(&amp;amp;mut self, _event: &amp;amp;GraphUpdateEvent)&lt;/code&gt; — Default no-op hook&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;workspace-identity&quot;&gt;Workspace Identity&lt;/h3&gt;
+&lt;p&gt;&lt;code&gt;WorkspaceContext&lt;/code&gt; provides routing identity with:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;workspace_key&lt;/code&gt; — Deterministic hash of workspace root path&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;workspace_name&lt;/code&gt; — Human-readable workspace identifier&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;root_path&lt;/code&gt; — Absolute filesystem root&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;timestamp&lt;/code&gt; — Unix epoch seconds at creation&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;event-system&quot;&gt;Event System&lt;/h3&gt;
+&lt;p&gt;&lt;code&gt;GraphUpdateEvent&lt;/code&gt; carries graph changes with:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;workspace_key&lt;/code&gt; — Routing key&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;modified_nodes&lt;/code&gt; — Affected node identifiers&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;event&lt;/code&gt; — Trigger kind: &lt;code&gt;Indexed&lt;/code&gt;, &lt;code&gt;Extracted&lt;/code&gt;, or &lt;code&gt;Manual&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;plugin-host&quot;&gt;Plugin Host&lt;/h3&gt;
+&lt;p&gt;&lt;code&gt;graphify-cli/src/plugin_host.rs&lt;/code&gt; manages bound plugins:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Registration via &lt;code&gt;register()&lt;/code&gt; method&lt;/li&gt;
+&lt;li&gt;Broadcast of &lt;code&gt;GraphUpdateEvent&lt;/code&gt; to all plugins&lt;/li&gt;
+&lt;li&gt;Panic isolation via &lt;code&gt;catch_unwind&lt;/code&gt; — failing plugins don&#39;t interrupt others&lt;/li&gt;
+&lt;li&gt;No dynamic loading in v1&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;technical-constraints&quot;&gt;Technical Constraints&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Zero external dependencies in core plugin contract&lt;/li&gt;
+&lt;li&gt;Synchronous execution only&lt;/li&gt;
+&lt;li&gt;Workspace key routing ensures deterministic plugin isolation&lt;/li&gt;
+&lt;li&gt;Default hook implementation maintains backward compatibility&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;in-development-review-pipeline&quot;&gt;In Development: Review Pipeline&lt;/h2&gt;
+&lt;h3 id=&quot;graphify-plugin-review&quot;&gt;graphify-plugin-review&lt;/h3&gt;
+&lt;p&gt;The review plugin implements topology-aware code review:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Git diff extraction&lt;/strong&gt; — Identifies modified files and symbols&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;BFS blast radius trace&lt;/strong&gt; — Calculates upward/downward impact chains&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;TOON subgraph generation&lt;/strong&gt; — Creates blast radius sub-graphs&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;AI semantic review&lt;/strong&gt; — Feeds subgraphs to AI reviewers&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3 id=&quot;workflow&quot;&gt;Workflow&lt;/h3&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Git Diff → Modified Symbols → Graphify BFS Trace → Blast Radius Sub-graph (.toon) → AI Code Reviewer Prompt&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;h3 id=&quot;current-state&quot;&gt;Current State&lt;/h3&gt;
+&lt;p&gt;The plugin exists but the full semantic review flow (Git diff → symbols → topology → TOON → semantic review) remains in development. The plugin is bound to workspaces via the v1 trait and receives graph-update events through the PluginHost.&lt;/p&gt;
+&lt;h2 id=&quot;planned-external-mcp-native-layer&quot;&gt;Planned: External MCP-Native Layer&lt;/h2&gt;
+&lt;h3 id=&quot;two-distinct-layers&quot;&gt;Two Distinct Layers&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;External Layer&lt;/strong&gt; (roadmap) vs &lt;strong&gt;Embedded Layer&lt;/strong&gt; (implemented):&lt;/p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Aspect&lt;/th&gt;&lt;th&gt;Embedded (v1)&lt;/th&gt;&lt;th&gt;External (roadmap)&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;Location&lt;/td&gt;&lt;td&gt;In-process Rust crate&lt;/td&gt;&lt;td&gt;Subprocess spawned by Graphify Core&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Language&lt;/td&gt;&lt;td&gt;Rust only&lt;/td&gt;&lt;td&gt;Any language&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Transport&lt;/td&gt;&lt;td&gt;Direct method calls&lt;/td&gt;&lt;td&gt;Stdio + JSON-RPC (MCP-native)&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Use case&lt;/td&gt;&lt;td&gt;Core-internal extension&lt;/td&gt;&lt;td&gt;Community third-party plugins&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;h3 id=&quot;planned-components&quot;&gt;Planned Components&lt;/h3&gt;
+&lt;h4 id=&quot;1-mcp-native-plugin-gateway&quot;&gt;1. MCP-Native Plugin Gateway&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;graphify-mcp unified gateway&lt;/strong&gt; — Single MCP server for external plugins&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Stdio + JSON-RPC transport&lt;/strong&gt; — Language-agnostic plugin interface&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Tool registration&lt;/strong&gt; — External plugins expose tools through MCP&#39;s &lt;code&gt;tools/list&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Mode 1 (Unified Gateway)&lt;/strong&gt; — graphify-mcp acts as MCP client, spawns plugins, aggregates tools&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;2-polyglot-sdks&quot;&gt;2. Polyglot SDKs&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;TypeScript/Node.js&lt;/strong&gt; — Primary target for OpenCode plugins and editor integrations&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Python&lt;/strong&gt; — For &lt;code&gt;graphify-plugin-opendoc&lt;/code&gt; (vector retrieval, LangChain/LlamaIndex)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Rust&lt;/strong&gt; — Native speed, internal plugins, adapter reference implementation&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;PHP&lt;/strong&gt; — Composer-managed PHP plugin SDK (deferred)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;3-plugin-lifecycle-management&quot;&gt;3. Plugin Lifecycle Management&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Lazy spawn&lt;/strong&gt; vs &lt;strong&gt;eager startup&lt;/strong&gt; configuration&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Crash/restart handling&lt;/strong&gt; — Plugin lifecycle monitoring&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Protocol versioning&lt;/strong&gt; — Semver for JSON-RPC schema&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Tool prefix strategy&lt;/strong&gt; — &lt;code&gt;graphify_&amp;lt;plugin&amp;gt;_&amp;lt;tool&amp;gt;&lt;/code&gt; naming&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;technical-roadmap&quot;&gt;Technical Roadmap&lt;/h3&gt;
+&lt;h4 id=&quot;phase-1-core-interface&quot;&gt;Phase 1: Core Interface&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;Finalize external protocol specification&lt;/li&gt;
+&lt;li&gt;Implement MCPPluginAdapter bridge (if unification desired)&lt;/li&gt;
+&lt;li&gt;Define JSON-RPC method contracts independent of v1 trait&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;phase-2-review-handoff&quot;&gt;Phase 2: Review &amp;amp; Handoff&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;Complete graphify-plugin-review pipeline&lt;/li&gt;
+&lt;li&gt;Implement graphify-plugin-handoff with .toon sub-graph export&lt;/li&gt;
+&lt;li&gt;Add graphify-plugin-opendoc vector integration&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;phase-3-external-sdk-deferred&quot;&gt;Phase 3: External SDK (Deferred)&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;Ship TypeScript/Node.js SDK first&lt;/li&gt;
+&lt;li&gt;Implement Python SDK for document processing&lt;/li&gt;
+&lt;li&gt;Add Rust adapter for external plugin compatibility&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;dogfood-cawa0505-github-io-editorial-workflow&quot;&gt;Dogfood: cawa0505.github.io Editorial Workflow&lt;/h2&gt;
+&lt;p&gt;This cawa0505.github.io site can leverage Graphify topology to supply bounded code context for articles. The editorial workflow would:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Extract workspace topology&lt;/strong&gt; — Use Graphify to analyze repository structure&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Generate bounded context&lt;/strong&gt; — Create TOON subgraphs representing relevant code sections&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Supply to AI reviewers&lt;/strong&gt; — Feed topology to semantic review pipeline for technical accuracy&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Maintain manual verification&lt;/strong&gt; — Facts remain manually verified, with performance/model benchmarks separate from executable milestones&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3 id=&quot;example-integration&quot;&gt;Example Integration&lt;/h3&gt;
+&lt;p&gt;When publishing architecture articles, the workflow could:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Extract the target repository&#39;s graph using &lt;code&gt;graphify extract&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Query specific modules or components using &lt;code&gt;graphify query&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Generate blast radius sub-graphs for impacted areas&lt;/li&gt;
+&lt;li&gt;Supply bounded context to AI for technical review&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;thesis-structural-facts-vs-semantic-interpretation&quot;&gt;Thesis: Structural Facts vs Semantic Interpretation&lt;/h2&gt;
+&lt;p&gt;Graphify computes explicit &lt;strong&gt;structural relationships&lt;/strong&gt; that should not be left to guesswork:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Symbol and file relationships&lt;/li&gt;
+&lt;li&gt;Call graph and impact-radius traversals&lt;/li&gt;
+&lt;li&gt;Deterministic workspace-key derivation from the workspace root&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;LLMs later interpret &lt;strong&gt;bounded semantic context&lt;/strong&gt; derived from these facts. Performance/model benchmarks remain separate from executable milestones, ensuring factual accuracy precedes semantic interpretation.&lt;/p&gt;
+&lt;h2 id=&quot;external-links&quot;&gt;External Links&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;GraphifyRust GitHub&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust/blob/main/docs/plugin_system.md&quot;&gt;Plugin System Documentation&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust/blob/main/docs/plugin-sdk-roadmap.md&quot;&gt;Plugin SDK Roadmap&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Graphify&#39;s plugin architecture maintains a clean separation between implemented embedded v1 traits and planned external MCP-native layer. The current implementation provides a solid foundation for internal extensions while leaving the external plugin ecosystem as a deliberate roadmap item. This approach ensures core stability while enabling future polyglot plugin development.&lt;/p&gt;
+&lt;p&gt;The system demonstrates that &lt;strong&gt;Rust computes structural facts that should not be guessed&lt;/strong&gt;; LLMs later interpret bounded semantic context. This philosophy ensures factual accuracy while enabling powerful AI-assisted workflows.&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Tapedeck: A Scriptable Recording Deck for Terminal Demos</title>
+        <published>2026-08-08T00:00:00+00:00</published>
+        <updated>2026-08-08T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/tapedeck-first-poc/"/>
+        <id>https://cawa0505.github.io/tapedeck-first-poc/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/tapedeck-first-poc/">&lt;p&gt;Most terminal demos are recorded the hard way: start a screen recorder, type the same commands again, and hope the timing survives the next take. &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck&lt;/a&gt; is a small Rust proof of concept aimed at making that process scriptable.&lt;/p&gt;
+&lt;p&gt;The input is a &lt;code&gt;.roll&lt;/code&gt; file. It describes the actions that should happen during a recording — typing, key presses, sleeps, output format, and frame rate — instead of encoding the demo as a one-off manual session.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/tapedeck-tui-demo.gif&quot; alt=&quot;Tapedeck TUI demo&quot; /&gt;&lt;/p&gt;
+&lt;h2 id=&quot;the-first-useful-split&quot;&gt;The first useful split&lt;/h2&gt;
+&lt;p&gt;Tapedeck currently has two recording paths:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/charmbracelet/vhs&quot;&gt;VHS&lt;/a&gt;&lt;/strong&gt; for terminal sessions, translating the script into a &lt;code&gt;vhs .tape&lt;/code&gt; run.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Native&lt;/strong&gt; for real desktop windows, with Wayland/X11 input and capture work planned around the native engine.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;code&gt;Set Engine Auto&lt;/code&gt; lets the project choose the path from the script&#39;s intent. The CLI also supports &lt;code&gt;--dry-run&lt;/code&gt;, so a recording can be checked for parsing and engine selection before it touches the screen.&lt;/p&gt;
+&lt;p&gt;The implementation is deliberately becoming boring in the right places: shared &lt;code&gt;.roll&lt;/code&gt; parsing, an engine trait, XDG-aware configuration, and explicit output flags such as &lt;code&gt;--fps&lt;/code&gt;, &lt;code&gt;--gif&lt;/code&gt;, and &lt;code&gt;--webp&lt;/code&gt;. The latest commits add &lt;code&gt;tapedeck doctor&lt;/code&gt;, which checks dependencies and probes available hardware encoders before saving the result to configuration.&lt;/p&gt;
+&lt;h2 id=&quot;why-this-is-a-poc&quot;&gt;Why this is a PoC&lt;/h2&gt;
+&lt;p&gt;The current milestone is not a polished capture suite. It is a test of the core loop:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;.roll script → parse → select engine → record → export media&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That loop is already enough to make a terminal demo repeatable. The next articles can go deeper into native window capture, hardware encoding, and asset management. For now, Tapedeck is the smallest interesting question: can a developer describe a demo once and regenerate it without manually replaying every keystroke?&lt;/p&gt;
+&lt;p&gt;→ &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck on GitHub&lt;/a&gt;&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Dogfooding: Graphify Extracts Its Own Codebase</title>
+        <published>2026-08-06T00:03:00+00:00</published>
+        <updated>2026-08-06T00:03:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/dogfooding-graphify-extracts-its-own-codebase/"/>
+        <id>https://cawa0505.github.io/dogfooding-graphify-extracts-its-own-codebase/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/dogfooding-graphify-extracts-its-own-codebase/">&lt;p&gt;The best test of a codebase-graph tool is its own codebase. &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify&lt;/a&gt; doesn&#39;t just ship graphs for other repos — we run it on itself in CI and in this article. Measured just now, on the project&#39;s own source:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;$ graphify extract .&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Successfully extracted graph to graphify-out/graph.toon (nodes: 225, edges: 750)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Elapsed (wall clock): 0.25 s   (second run: 0.12 s)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Maximum resident set size: ~17 MB&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;225 nodes, 750 edges, one quarter of a second, less RAM than a browser tab. That&#39;s the whole promise of the Rust rewrite (&lt;a href=&quot;/26x-faster-rewriting-the-codebase-grapher-in-rust/&quot;&gt;part 2&lt;/a&gt;) in one command line.&lt;/p&gt;
+&lt;h2 id=&quot;what-the-graph-looks-like&quot;&gt;What the graph looks like&lt;/h2&gt;
+&lt;p&gt;The workspace is split into focused crates, and the graph shows it:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;graphify-core&lt;/strong&gt; — AST parsing and the graph data model&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-llm&lt;/strong&gt; — the semantic pass and rate-limit handling (&lt;code&gt;AutoRotatePipeline&lt;/code&gt; lives at &lt;code&gt;graphify-llm/src/pipeline.rs:9&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-cli&lt;/strong&gt; — &lt;code&gt;extract&lt;/code&gt;, &lt;code&gt;query&lt;/code&gt;, &lt;code&gt;path&lt;/code&gt;, &lt;code&gt;index&lt;/code&gt;, &lt;code&gt;tui&lt;/code&gt;, &lt;code&gt;install-skill&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-mcp&lt;/strong&gt; — the &lt;a rel=&quot;external&quot; href=&quot;https://modelcontextprotocol.io&quot;&gt;Model Context Protocol&lt;/a&gt; server so assistants query the graph directly&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-out&lt;/strong&gt; — the &lt;code&gt;.toon&lt;/code&gt; format crate&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;querying-it&quot;&gt;Querying it&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;query&lt;/code&gt; and &lt;code&gt;path&lt;/code&gt; work on the extracted graph, so an assistant (or a human) can ask structural questions without reading the whole repo:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;$ graphify query &amp;quot;./graphify-llm/src/pipeline.rs:struct:AutoRotatePipeline&amp;quot; --depth 1&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;...returns the node with its neighbors — who calls what, where the struct starts (&lt;code&gt;pipeline.rs:9&lt;/code&gt;), what module it belongs to. &lt;code&gt;graphify path A B&lt;/code&gt; answers &quot;how do these two subsystems connect?&quot;&lt;/p&gt;
+&lt;h2 id=&quot;why-dogfooding-matters&quot;&gt;Why dogfooding matters&lt;/h2&gt;
+&lt;p&gt;Three things running graphify on itself catches, that manual docs would miss:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Extraction must be fast enough to feel instant&lt;/strong&gt; — the TUI re-extracts live as you navigate.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;The MCP server must actually answer&lt;/strong&gt; — we use it while developing, so a broken query path is a broken day.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;The graph must match reality&lt;/strong&gt; — the crate split above is verified by the graph, not by prose.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Graphify is open source. If you build AI agents that work across codebases, this is what they see when they look at a repo.&lt;/p&gt;
+&lt;p&gt;→ &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify on GitHub&lt;/a&gt;&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>OpenDocuments: A Self-Hosted RAG Platform That Fits in a Single Binary</title>
+        <published>2026-08-06T00:00:00+00:00</published>
+        <updated>2026-08-06T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/opendocuments-self-hosted-rag-single-binary/"/>
+        <id>https://cawa0505.github.io/opendocuments-self-hosted-rag-single-binary/</id>
+        
+        <summary type="html">&lt;p&gt;OpenDocuments is a self-hosted RAG platform: point it at a folder of PDFs, DOCX, XLSX, Markdown files or web pages, and it builds an AI-searchable knowledge base with cited answers. It ships as one Rust binary that embeds both the Axum API server and the React WebUI via &lt;code&gt;rust-embed&lt;/code&gt; — no Node runtime, no external assets, nothing to install besides the executable.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>26× Faster: Rewriting the Codebase Grapher in Rust</title>
+        <published>2026-08-05T00:02:00+00:00</published>
+        <updated>2026-08-05T00:02:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/26x-faster-rewriting-the-codebase-grapher-in-rust/"/>
+        <id>https://cawa0505.github.io/26x-faster-rewriting-the-codebase-grapher-in-rust/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/26x-faster-rewriting-the-codebase-grapher-in-rust/">&lt;p&gt;The Python prototype of &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify&lt;/a&gt; was reliable — 429 auto-rotation and provider failover meant it kept working under real rate limits (&lt;a href=&quot;/rate-limits-429-auto-rotation/&quot;&gt;part 1&lt;/a&gt;). But it was slow, and it shipped a whole environment.&lt;/p&gt;
+&lt;p&gt;The numbers that decided the rewrite:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;420 ms&lt;/strong&gt; to extract a benchmark repo of 110 source files / 422 edges — in Python&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;16 ms&lt;/strong&gt; for the same extraction — in Rust&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;26.25×&lt;/strong&gt; faster, measured on the same machine in the repo&#39;s own benchmark&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;why-rust-won&quot;&gt;Why Rust won&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Rayon parallelism, not threads by hand.&lt;/strong&gt; Source files are independent until the graph is linked, so extraction parallelizes across cores with Rayon and gets a near-linear speedup. The Python version was single-threaded — that alone was most of the gap.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;petgraph with arena pre-allocation.&lt;/strong&gt; Node and edge storage is a flat arena allocated up front for the expected size, so graph construction avoids per-node allocation churn. The graph structure is the product; making it cheap to build is the whole game.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;A binary, not an environment.&lt;/strong&gt; The Python version needed a multi-GB interpreter + dependency stack on every machine that ran it. The Rust release build is a single static binary you drop anywhere — which is what made a CLI and TUI practical.&lt;/p&gt;
+&lt;h2 id=&quot;the-tui-was-a-side-effect-of-going-native&quot;&gt;The TUI was a side effect of going native&lt;/h2&gt;
+&lt;p&gt;Once the core was a fast library, the interactive front-end stopped being a web app question and became a terminal question:&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/graphify-tui-demo.gif&quot; alt=&quot;graphify TUI demo&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;Because extraction takes milliseconds, the TUI can re-extract live and re-render the graph as you navigate — something an HTTP round-trip to a Python service could never feel like.&lt;/p&gt;
+&lt;h2 id=&quot;tokens-are-the-real-currency&quot;&gt;Tokens are the real currency&lt;/h2&gt;
+&lt;p&gt;For AI assistants, the output format matters as much as speed. The Rust version emits a compact columnar &lt;code&gt;.toon&lt;/code&gt; (Token-Oriented Object Notation) text format instead of JSON — 74 KB vs 185 KB for the same graph (−60% tokens).&lt;/p&gt;
+&lt;p&gt;Two phases in, the tool is reliable and fast. &lt;a href=&quot;/dogfooding-graphify-extracts-its-own-codebase/&quot;&gt;Part 3: it extracts its own codebase&lt;/a&gt; — and the numbers are real.&lt;/p&gt;
+&lt;p&gt;→ &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify on GitHub&lt;/a&gt;&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>draco: A Firecrawl Alternative Without the Browser Boot</title>
+        <published>2026-08-02T00:00:00+00:00</published>
+        <updated>2026-08-02T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/draco-firecrawl-alternative-without-browser-boot/"/>
+        <id>https://cawa0505.github.io/draco-firecrawl-alternative-without-browser-boot/</id>
+        
+        <summary type="html">&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/draco&quot;&gt;draco&lt;/a&gt; is a native-Rust web scraper designed as an MCP server. Point it at a URL and get clean Markdown + metadata back — no Node, no headless-Chrome fleet, no per-request browser boot. It is positioned as the lightweight half of a scrape stack: use draco for content, structured data and DOM interaction; escalate to a real browser only when the task needs layout, screenshots or downloads.&lt;/p&gt;
+&lt;p&gt;It is a fork of &lt;a rel=&quot;external&quot; href=&quot;https://github.com/0xchasercat/draco&quot;&gt;0xchasercat/draco&lt;/a&gt; — the MCP ergonomics layer and anti-blocking engine described below are fork work, layered on the upstream core. We built what we needed for our own agent workflows and share it back; the upstream author gets full credit for the base.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Code Relay MCP: Early Concept for Cross-Session State Handoff</title>
+        <published>2026-07-31T00:00:00+00:00</published>
+        <updated>2026-07-31T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/code-relay-mcp-cross-session-state-handoff/"/>
+        <id>https://cawa0505.github.io/code-relay-mcp-cross-session-state-handoff/</id>
+        
+        <summary type="html">&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Migration note&lt;/strong&gt;: The repository originally linked here as &lt;code&gt;code-relay-mcp&lt;/code&gt; has been renamed to &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-plugin-handoff&quot;&gt;graphify-plugin-handoff&lt;/a&gt; and re-architected as a Graphify embedded plugin rather than a standalone MCP server. This article is preserved as the early concept write-up. For the actual implementation, see &lt;a href=&quot;/graphify-plugin-handoff-cross-session-state/&quot;&gt;Relay: Cross-session State Handoff as a Graphify Plugin&lt;/a&gt;.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The original concept proposed a native-Rust MCP server that manages cross-session, cross-repository handoffs for coding agents. It was envisioned as the engine behind the code-relay workflow, replacing the old Node.js &lt;code&gt;@jimmyyen/opencode-code-relay-plugin&lt;/code&gt; while keeping 100% backward compatibility — existing workflows and prompts would keep working, just faster underneath.&lt;/p&gt;</summary>
+        
+    </entry>
+</feed>

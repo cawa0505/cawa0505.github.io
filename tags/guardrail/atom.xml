@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - guardrail</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/guardrail/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-19T06:47:43+00:00</updated>
+    <id>https://cawa0505.github.io/tags/guardrail/atom.xml</id>
+    <entry xml:lang="en">
+        <title>Local LLM-as-a-Verifier on a 16GB ROCm GPU: Real Benchmark Data</title>
+        <published>2026-08-19T06:47:43+00:00</published>
+        <updated>2026-08-19T06:47:43+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/llm-as-a-verifier-benchmark-rocm-16gb/"/>
+        <id>https://cawa0505.github.io/llm-as-a-verifier-benchmark-rocm-16gb/</id>
+        
+        <summary type="html">&lt;p&gt;&lt;strong&gt;TL;DR:&lt;/strong&gt; I benchmarked the local LLM-as-a-Verifier setup running Qwen3.5-9B (Q4_K) on a single 16GB AMD GPU via ROCm. The verifier processes a code comparison in ~0.5–2s at 66% cache hit rate, correctly scoring valid code changes at 1.0 and invalid ones at 0.0–0.14. The 16GB card handles the 9B model comfortably, leaving headroom for other services.&lt;/p&gt;
+&lt;p&gt;This article is a follow-up to the &lt;a rel=&quot;external&quot; href=&quot;https://cawa0505.github.io/llm-as-a-verifier-local-ai-guard/&quot;&gt;architecture overview&lt;/a&gt; and the &lt;a rel=&quot;external&quot; href=&quot;https://cawa0505.github.io/packaging-llm-as-a-verifier-docker/&quot;&gt;Docker packaging guide&lt;/a&gt;. Those articles described the &lt;em&gt;what&lt;/em&gt; and &lt;em&gt;how&lt;/em&gt; — this one provides the measured &lt;em&gt;how well&lt;/em&gt;.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Poor Man&#39;s LLM-as-a-Verifier: 16GB GPU + ROCm for Zero-Cost Local Agent Guardrails</title>
+        <published>2026-08-19T05:55:10+00:00</published>
+        <updated>2026-08-19T05:55:10+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/llm-as-a-verifier-local-ai-guard/"/>
+        <id>https://cawa0505.github.io/llm-as-a-verifier-local-ai-guard/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/llm-as-a-verifier-local-ai-guard/">&lt;h1 id=&quot;poor-man-s-llm-as-a-verifier-16gb-gpu-rocm-for-zero-cost-local-agent-guardrails&quot;&gt;Poor Man&#39;s LLM-as-a-Verifier: 16GB GPU + ROCm for Zero-Cost Local Agent Guardrails&lt;/h1&gt;
+&lt;p&gt;&lt;strong&gt;TL;DR:&lt;/strong&gt; This article is for developers who don&#39;t want to burn money on cloud API bills and are afraid of autonomous coding agents blindly refactoring their codebase into oblivion. We&#39;ll build a local, zero-cost AI exoskeleton with a 16GB AMD GPU, Linux ROCm (HIP) acceleration, and a deterministic 2PC guard rail written in Rust — matching the spec of production-grade PRM (Process Reward Model) systems.&lt;/p&gt;
+&lt;h2 id=&quot;1-the-pain-agent-fever-meets-bill-shock-and-code-destruction&quot;&gt;1. The Pain: Agent Fever Meets Bill Shock and Code Destruction&lt;/h2&gt;
+&lt;p&gt;Autonomous coding agents (OpenCode, Claude Code, etc.) have fundamentally changed how we write software. But they come with two nightmares:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Token black hole &amp;amp; API bill shock&lt;/strong&gt;: To maintain code quality, agents need extensive self-reflection, Best-of-N comparisons, and long-chain repair. A few rounds of dialogue later, your cloud API bill is through the roof.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Non-determinism&lt;/strong&gt;: An agent without guardrails is a race car without a steering wheel — it might silently mutate global interfaces, corrupt your DB schema, or hallucinate syntax errors.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;The fix&lt;/strong&gt;: We need a Verifier (process supervisor). But production papers routinely use A100 clusters with vLLM pre-allocating tens of GB of VRAM — costs most developers can&#39;t justify. We need a poor man&#39;s Process Supervision system that runs smoothly on a single 16GB consumer GPU.&lt;/p&gt;
+&lt;h2 id=&quot;2-hardware-driver-layer-why-16gb-amd-rocm-hip&quot;&gt;2. Hardware &amp;amp; Driver Layer: Why 16GB AMD + ROCm (HIP)?&lt;/h2&gt;
+&lt;p&gt;On a Homelab / Linux (CachyOS) setup, pairing a Radeon RX 9060 XT 16GB with the ROCm backend is the sweet spot for cost-performance:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;HIP matrix acceleration &amp;amp; VRAM throughput&lt;/strong&gt;: ROCm&#39;s native HIP acceleration lets 16GB VRAM comfortably handle Qwen3.5-9B with mmproj (code semantics + multimodal vision).&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Escaping the vLLM VRAM trap&lt;/strong&gt;: vLLM&#39;s 90% pre-allocation policy is a disaster on a single multi-tasking machine. Switch to the ROCm build of llama-server (GGUF quantization). Model weights consume only 5–9 GB of VRAM, leaving room for dynamic KV cache allocation while the host runs other services.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Zero API cost&lt;/strong&gt;: Triggering 10,000 &lt;code&gt;/v1/directed&lt;/code&gt; scoring calls through the 2PC (two-phase commit) gate costs nothing more than pocket change in electricity. Token anxiety gone.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;3-architectural-philosophy-the-tri-layer-deterministic-harness&quot;&gt;3. Architectural Philosophy: The Tri-Layer Deterministic Harness&lt;/h2&gt;
+&lt;p&gt;The core idea: &lt;strong&gt;demote the LLM from a system-write-privileged executor to an intern who must submit legitimate proposals.&lt;/strong&gt;&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;┌────────────────────────────────────────────────────────────────────────┐&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│ omo-slim / OpenCode Orchestrator                                       │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;└───────────────────────────────────┬────────────────────────────────────┘&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;                                    │ 1. 2PC Proposal (Diff / AST Delta)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;                                    ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;┌────────────────────────────────────────────────────────────────────────┐&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│ guardrail-mcp (Deterministic 2PC Gateway)                              │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│                                                                        │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│  Track 1: Hard Guard (Rust / graphify-core AST structural check)       │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│  └── Millisecond short-circuit — syntax errors / violations rejected   │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│      instantly (0 VRAM usage)                                          │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│                                                                        │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│  Track 2: Soft Guard (Local multimodal semantic review)                │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;└───────────────────────────────────┬────────────────────────────────────┘&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;                                    │ 2. POST /v1/directed&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;                                    ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;┌────────────────────────────────────────────────────────────────────────┐&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│ docker-llm-as-a-verifier (Local ROCm Backend / llama-server)           │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│ └── Qwen3.5-9B with mmproj (GGUF)                   │&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;└────────────────────────────────────────────────────────────────────────┘&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;graphify (AST &amp;amp; Context Manager)&lt;/strong&gt;: Written in Rust. Handles code topology analysis and dynamic token pruning — feeds only the minimal sub-graph with the highest information density to the agent.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;guardrail-mcp (State Machine &amp;amp; 2PC Gateway)&lt;/strong&gt;: An independent MCP guard. Enforces two-phase commit (Phase 1: Proposal → Phase 2: Guard Check → Issue commit_token).&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;docker-llm-as-a-verifier (PRM Evaluation Server)&lt;/strong&gt;: A Docker-packaged local review container. Accelerated by ROCm, providing fine-grained scoring.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;4-implementation-breakdown-rest-api-spec-aligned-with-production-prm&quot;&gt;4. Implementation Breakdown: REST API Spec Aligned with Production PRM&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;docker-llm-as-a-verifier&lt;/code&gt; exposes 7 complete REST API endpoints implementing high-level Process Supervision primitives:&lt;/p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Endpoint&lt;/th&gt;&lt;th&gt;Method&lt;/th&gt;&lt;th&gt;2PC Use Case&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/directed&lt;/code&gt;&lt;/td&gt;&lt;td&gt;POST&lt;/td&gt;&lt;td&gt;&lt;strong&gt;[Core]&lt;/strong&gt; Given the original task, compare old code A vs fixed code B, return Preference Score and accepted flag&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/select&lt;/code&gt;&lt;/td&gt;&lt;td&gt;POST&lt;/td&gt;&lt;td&gt;&lt;strong&gt;[Best-of-N]&lt;/strong&gt; Pick the highest-scoring, safest AST change from N agent-generated proposals&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/track&lt;/code&gt;&lt;/td&gt;&lt;td&gt;POST&lt;/td&gt;&lt;td&gt;&lt;strong&gt;[Trajectory Monitor]&lt;/strong&gt; Evaluate progress after each action. Short-circuit if the agent is making things worse&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/compare&lt;/code&gt;&lt;/td&gt;&lt;td&gt;POST&lt;/td&gt;&lt;td&gt;Quick A/B Testing: pairwise scoring&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/score-pairs&lt;/code&gt;&lt;/td&gt;&lt;td&gt;POST&lt;/td&gt;&lt;td&gt;Batch regression testing and evaluation&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/health&lt;/code&gt;&lt;/td&gt;&lt;td&gt;GET&lt;/td&gt;&lt;td&gt;System health check&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;/v1/usage&lt;/code&gt;&lt;/td&gt;&lt;td&gt;GET&lt;/td&gt;&lt;td&gt;Local token accumulation statistics&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;h2 id=&quot;5-real-world-closure-from-proposal-interception-to-micro-patching&quot;&gt;5. Real-World Closure: From Proposal Interception to Micro-Patching&lt;/h2&gt;
+&lt;p&gt;When the agent proposes a code change with hidden risks, the defensive closure works like this:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Coder Agent submits a change proposal.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;guardrail-mcp&lt;/code&gt; triggers Track 1: &lt;code&gt;graphify-core&lt;/code&gt; scans and detects an interface discontinuity.&lt;/li&gt;
+&lt;li&gt;If Track 1 passes, Track 2 fires: HTTP POST to the Docker &lt;code&gt;/v1/directed&lt;/code&gt; endpoint (Qwen3.5-9B with mmproj).&lt;/li&gt;
+&lt;li&gt;Verifier returns REJECTED with this payload:&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;json&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;  &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;status&lt;/span&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt;REJECTED&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;  &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;reason&lt;/span&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt;Signature mismatch on UserRepositoryInterface&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;  &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;ast_node_id&lt;/span&gt;&lt;span style=&quot;color: #8BE9FE;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt;Node#402&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/li&gt;
+&lt;li&gt;The orchestrator captures &lt;code&gt;ast_node_id&lt;/code&gt; and instructs the agent to perform a local micro-patch targeting only &lt;code&gt;Node#402&lt;/code&gt; — no full-file re-reads!&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;&lt;strong&gt;Dual verification bonus&lt;/strong&gt;: UI changes can be further validated by Qwen3.5-9B with mmproj reviewing Playwright rendering screenshots (Visual Guard), ensuring no layout breakage or CSS regressions.&lt;/p&gt;
+&lt;h2 id=&quot;6-conclusion-take-control-and-compute-back-to-the-edge&quot;&gt;6. Conclusion: Take Control and Compute Back to the Edge&lt;/h2&gt;
+&lt;p&gt;You don&#39;t need a hundred-thousand-dollar A100 cluster. You don&#39;t need to pay monthly tribute to cloud API giants. With a Rust-based deterministic graph, a 2PC state-machine guard, and an AMD ROCm-powered local multimodal verifier, we&#39;ve built a fully private, zero-leakage AI exoskeleton with production-grade PRM capability — all on a sub-$500 consumer GPU.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Open-source repositories:&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;2PC guard gate: &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/guardrail-mcp&quot;&gt;github.com/cawa0505/guardrail-mcp&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Local verifier container: &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/docker-llm-as-a-verifier&quot;&gt;github.com/cawa0505/docker-llm-as-a-verifier&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+        
+    </entry>
+</feed>

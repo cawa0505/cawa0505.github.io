@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - developer-tools</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/developer-tools/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-08T00:00:00+00:00</updated>
+    <id>https://cawa0505.github.io/tags/developer-tools/atom.xml</id>
+    <entry xml:lang="en">
+        <title>Tapedeck: A Scriptable Recording Deck for Terminal Demos</title>
+        <published>2026-08-08T00:00:00+00:00</published>
+        <updated>2026-08-08T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/tapedeck-first-poc/"/>
+        <id>https://cawa0505.github.io/tapedeck-first-poc/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/tapedeck-first-poc/">&lt;p&gt;Most terminal demos are recorded the hard way: start a screen recorder, type the same commands again, and hope the timing survives the next take. &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck&lt;/a&gt; is a small Rust proof of concept aimed at making that process scriptable.&lt;/p&gt;
+&lt;p&gt;The input is a &lt;code&gt;.roll&lt;/code&gt; file. It describes the actions that should happen during a recording — typing, key presses, sleeps, output format, and frame rate — instead of encoding the demo as a one-off manual session.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/tapedeck-tui-demo.gif&quot; alt=&quot;Tapedeck TUI demo&quot; /&gt;&lt;/p&gt;
+&lt;h2 id=&quot;the-first-useful-split&quot;&gt;The first useful split&lt;/h2&gt;
+&lt;p&gt;Tapedeck currently has two recording paths:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/charmbracelet/vhs&quot;&gt;VHS&lt;/a&gt;&lt;/strong&gt; for terminal sessions, translating the script into a &lt;code&gt;vhs .tape&lt;/code&gt; run.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Native&lt;/strong&gt; for real desktop windows, with Wayland/X11 input and capture work planned around the native engine.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;code&gt;Set Engine Auto&lt;/code&gt; lets the project choose the path from the script&#39;s intent. The CLI also supports &lt;code&gt;--dry-run&lt;/code&gt;, so a recording can be checked for parsing and engine selection before it touches the screen.&lt;/p&gt;
+&lt;p&gt;The implementation is deliberately becoming boring in the right places: shared &lt;code&gt;.roll&lt;/code&gt; parsing, an engine trait, XDG-aware configuration, and explicit output flags such as &lt;code&gt;--fps&lt;/code&gt;, &lt;code&gt;--gif&lt;/code&gt;, and &lt;code&gt;--webp&lt;/code&gt;. The latest commits add &lt;code&gt;tapedeck doctor&lt;/code&gt;, which checks dependencies and probes available hardware encoders before saving the result to configuration.&lt;/p&gt;
+&lt;h2 id=&quot;why-this-is-a-poc&quot;&gt;Why this is a PoC&lt;/h2&gt;
+&lt;p&gt;The current milestone is not a polished capture suite. It is a test of the core loop:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;.roll script → parse → select engine → record → export media&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That loop is already enough to make a terminal demo repeatable. The next articles can go deeper into native window capture, hardware encoding, and asset management. For now, Tapedeck is the smallest interesting question: can a developer describe a demo once and regenerate it without manually replaying every keystroke?&lt;/p&gt;
+&lt;p&gt;→ &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck on GitHub&lt;/a&gt;&lt;/p&gt;
+</content>
+        
+    </entry>
+</feed>

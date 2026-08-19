@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - rag</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/rag/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-06T00:00:00+00:00</updated>
+    <id>https://cawa0505.github.io/tags/rag/atom.xml</id>
+    <entry xml:lang="en">
+        <title>OpenDocuments: A Self-Hosted RAG Platform That Fits in a Single Binary</title>
+        <published>2026-08-06T00:00:00+00:00</published>
+        <updated>2026-08-06T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/opendocuments-self-hosted-rag-single-binary/"/>
+        <id>https://cawa0505.github.io/opendocuments-self-hosted-rag-single-binary/</id>
+        
+        <summary type="html">&lt;p&gt;OpenDocuments is a self-hosted RAG platform: point it at a folder of PDFs, DOCX, XLSX, Markdown files or web pages, and it builds an AI-searchable knowledge base with cited answers. It ships as one Rust binary that embeds both the Axum API server and the React WebUI via &lt;code&gt;rust-embed&lt;/code&gt; — no Node runtime, no external assets, nothing to install besides the executable.&lt;/p&gt;</summary>
+        
+    </entry>
+</feed>

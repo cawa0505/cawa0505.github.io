@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - tools</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/tools/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-18T00:00:00+00:00</updated>
+    <id>https://cawa0505.github.io/tags/tools/atom.xml</id>
+    <entry xml:lang="en">
+        <title>Our Pain with AI Coding Agents: Two Tools We Built to Stop Them from Breaking Things</title>
+        <published>2026-08-18T00:00:00+00:00</published>
+        <updated>2026-08-18T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/defensive-agent-architecture-graphify-statemachine/"/>
+        <id>https://cawa0505.github.io/defensive-agent-architecture-graphify-statemachine/</id>
+        
+        <summary type="html">&lt;iframe src=&quot;/defensive-agent-architecture-deck/&quot; width=&quot;100%&quot; height=&quot;500&quot; style=&quot;border:1px solid rgba(255,255,255,0.1); border-radius:12px; margin-bottom:32px;&quot; title=&quot;Defensive Agent Architecture slides&quot;&gt;&lt;/iframe&gt;
+&lt;p&gt;What&#39;s the biggest problem with using AI to write code? For us, it&#39;s not that the models aren&#39;t smart enough — it&#39;s that &lt;strong&gt;we can&#39;t trust them&lt;/strong&gt;.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;LLM tokens keep getting more expensive, but most of them go toward re-reading code structure the agent already saw.&lt;/li&gt;
+&lt;li&gt;The agent edits a file, the compiler screams, and it takes 3-4 rounds to get a clean compile.&lt;/li&gt;
+&lt;li&gt;Halfway through a task, context runs out. New session starts from scratch — everything is forgotten.&lt;/li&gt;
+&lt;li&gt;Sometimes broken code hits the filesystem before anyone notices.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;These are probably not unique to us. Our approach was to build two small tools — one for &lt;strong&gt;input cost&lt;/strong&gt;, one for &lt;strong&gt;operation safety&lt;/strong&gt; — connected to OpenCode via MCP. Each does exactly one thing.&lt;/p&gt;</summary>
+        
+    </entry>
+</feed>

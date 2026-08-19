@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - Open Source</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/open-source/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-18T21:37:36+00:00</updated>
+    <id>https://cawa0505.github.io/tags/open-source/atom.xml</id>
+    <entry xml:lang="en">
+        <title>Running LLM-as-a-Verifier Locally on a Low-Cost Setup</title>
+        <published>2026-08-18T21:37:36+00:00</published>
+        <updated>2026-08-18T21:37:36+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/packaging-llm-as-a-verifier-docker/"/>
+        <id>https://cawa0505.github.io/packaging-llm-as-a-verifier-docker/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/packaging-llm-as-a-verifier-docker/">&lt;p&gt;Running an LLM verifier does not have to start with an expensive hosted API or a dedicated inference cluster. I am working on a low-cost local implementation of &lt;a rel=&quot;external&quot; href=&quot;https://github.com/llm-as-a-verifier/llm-as-a-verifier&quot;&gt;LLM-as-a-Verifier&lt;/a&gt;, using a local model backend and Docker only to package the verifier service.&lt;/p&gt;
+&lt;p&gt;The goal is practical: make the paper&#39;s verification idea runnable on hardware that is already available, keep the model outside the container, and make the setup easy to test before spending more compute.&lt;/p&gt;
+&lt;p&gt;Large language models are often used to generate several candidate answers and then choose one with another model acting as a judge. That pattern is useful, but a single discrete judgment throws away much of the verifier model&#39;s uncertainty.&lt;/p&gt;
+&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/llm-as-a-verifier/llm-as-a-verifier&quot;&gt;LLM-as-a-Verifier&lt;/a&gt; takes a different approach. It reads token-level log probabilities for ordered score tokens and turns that distribution into a continuous reward. The reward can then drive best-of-N selection, progress tracking, or preference comparison.&lt;/p&gt;
+&lt;p&gt;I am packaging the project as a small Docker deployment in &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/docker-llm-as-a-verifier&quot;&gt;docker-llm-as-a-verifier&lt;/a&gt;. The repository is a deployment wrapper, not a reimplementation of the research method. The upstream paper and source repository remain the authority for the algorithm, experiments, and reported results.&lt;/p&gt;
+&lt;h2 id=&quot;the-deployment-boundary&quot;&gt;The deployment boundary&lt;/h2&gt;
+&lt;p&gt;The container does not serve a model. It installs the &lt;code&gt;llm-verifier&lt;/code&gt; package and exposes a thin HTTP service around it. The actual model runs behind an external OpenAI-compatible endpoint that must return token-level logprobs.&lt;/p&gt;
+&lt;p&gt;That boundary keeps the image small and makes the deployment useful with a low-cost local backend, including llama.cpp, vLLM, or SGLang. A compatible hosted API can work too, but it is not the point of this example: the intended path is local inference without a large cloud bill.&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;client&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  |&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  v&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Docker container :8010&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  |  /health&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  |  /v1/compare&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  |  /v1/select&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  v&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;OpenAI-compatible backend :/v1&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  |&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  v&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;verifier model with token logprobs&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The main configuration is deliberately small:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;dotenv&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;OPENAI_BASE_URL&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span&gt;http://host.docker.internal:8080/v1&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;MODEL_ALIAS&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span&gt;qwen3.5-9b&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;OPENAI_API_KEY&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span&gt;EMPTY&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;VERIFIER_PORT&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span&gt;8010&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;VERIFIER_MIN_SCORE&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span&gt;0.8&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;code&gt;OPENAI_BASE_URL&lt;/code&gt; is the important setting. The backend must support the logprob information that the verifier needs; an API that only returns final text is not enough for this deployment.&lt;/p&gt;
+&lt;h2 id=&quot;running-the-service&quot;&gt;Running the service&lt;/h2&gt;
+&lt;p&gt;After cloning the repository, copy the example environment file and set the backend URL:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;git&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; clone https://github.com/cawa0505/docker-llm-as-a-verifier.git&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;cd&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; docker-llm-as-a-verifier&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;cp&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; .env.example .env&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #6272A4;&quot;&gt;# Edit .env for your backend&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;docker&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; compose build&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;docker&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; compose up&lt;/span&gt;&lt;span style=&quot;color: #BD93F9;&quot;&gt; -d&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The default service port is &lt;code&gt;8010&lt;/code&gt;. The first check is intentionally boring:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;curl&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; http://localhost:8010/health&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The response reports the service status, configured model alias, and backend URL. This catches a container or configuration problem before sending a verification request.&lt;/p&gt;
+&lt;h2 id=&quot;what-the-wrapper-exposes&quot;&gt;What the wrapper exposes&lt;/h2&gt;
+&lt;p&gt;The service currently wraps two core operations:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;/v1/compare&lt;/code&gt; compares two candidates and returns their verifier rewards.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;/v1/select&lt;/code&gt; evaluates a candidate set and returns the selected candidate and ranking information.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The underlying Python library provides more capabilities, but those are not exposed by this Docker API yet. The current wrapper starts with the smallest useful surface for smoke tests and integration. The remaining endpoints are being implemented as the local deployment grows.&lt;/p&gt;
+&lt;p&gt;A deployment wrapper should make the upstream contract visible instead of hiding it. In this case, that means documenting the logprob requirement, the external model boundary, and the fact that the container is not the inference server.&lt;/p&gt;
+&lt;h2 id=&quot;api-roadmap&quot;&gt;API roadmap&lt;/h2&gt;
+&lt;p&gt;The next work is to expose more of the upstream library through the same HTTP service. These are planned or in-progress endpoint implementations, not features that are already available today.&lt;/p&gt;
+&lt;h3 id=&quot;p1-track-agent-progress&quot;&gt;P1: track agent progress&lt;/h3&gt;
+&lt;p&gt;&lt;code&gt;track(problem, steps, checkpoint_steps, n_evaluations, ...)&lt;/code&gt; will score an agent trajectory at each checkpoint. This is the most relevant next endpoint for a local agent workflow: it can show whether a long-running patch is moving toward a verified result, instead of waiting until the entire trajectory ends.&lt;/p&gt;
+&lt;p&gt;One concrete target is StateMachineMcp. A state machine can submit its observed steps and receive a progress signal while a patch is being developed. The roadmap describes this as an O(K) checkpoint-oriented cost, where K is the number of checkpoints.&lt;/p&gt;
+&lt;h3 id=&quot;p2-batch-directed-scoring&quot;&gt;P2: batch directed scoring&lt;/h3&gt;
+&lt;p&gt;The batch scoring API will handle many directed &lt;code&gt;(A, B)&lt;/code&gt; comparisons, with disk-cache merging and configurable parallel evaluation. This is useful when a local experiment needs to compare more than one candidate pair without rebuilding the orchestration around each request.&lt;/p&gt;
+&lt;h3 id=&quot;p3-finer-grained-scoring-controls&quot;&gt;P3: finer-grained scoring controls&lt;/h3&gt;
+&lt;p&gt;The lower-level scoring APIs will expose a single criterion comparison and the pure computation that derives directed rewards from scored data. These endpoints give callers more control than the higher-level &lt;code&gt;compare&lt;/code&gt; and &lt;code&gt;select&lt;/code&gt; operations, but they also expose more of the verifier&#39;s internal contract, so they come after trajectory tracking and batch scoring.&lt;/p&gt;
+&lt;h3 id=&quot;p4-supporting-utilities&quot;&gt;P4: supporting utilities&lt;/h3&gt;
+&lt;p&gt;The roadmap also includes small utilities for loading prompt criteria, formatting token-usage reports, and creating an OpenAI client from environment variables. They are not headline endpoints, but they reduce repeated setup code for local deployments.&lt;/p&gt;
+&lt;p&gt;The roadmap is intentionally incremental. First make a low-cost local &lt;code&gt;compare&lt;/code&gt; and &lt;code&gt;select&lt;/code&gt; service work, then add the API needed by real agent workflows, and only afterward expose lower-level controls that need stronger compatibility guarantees.&lt;/p&gt;
+&lt;h2 id=&quot;smoke-tests-are-part-of-the-image&quot;&gt;Smoke tests are part of the image&lt;/h2&gt;
+&lt;p&gt;The repository includes two one-off checks that run through Docker Compose:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #6272A4;&quot;&gt;# Backend connectivity and logprob support&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;docker&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; compose run&lt;/span&gt;&lt;span style=&quot;color: #BD93F9;&quot;&gt; --rm&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; verifier python scripts/smoke_test.py&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #6272A4;&quot;&gt;# Core compare() and select() behavior&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;docker&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; compose run&lt;/span&gt;&lt;span style=&quot;color: #BD93F9;&quot;&gt; --rm&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; verifier python scripts/verifier_smoke_test.py&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The first test checks the dependency that is easiest to overlook: whether the configured backend actually returns usable logprobs. The second test checks the wrapper&#39;s core verifier operations with assertions.&lt;/p&gt;
+&lt;p&gt;This split is useful during setup. If the connectivity test fails, changing selection logic will not help. If connectivity works but the verifier smoke test fails, the problem is closer to the package or wrapper contract.&lt;/p&gt;
+&lt;h2 id=&quot;why-use-docker-for-a-local-setup&quot;&gt;Why use Docker for a local setup?&lt;/h2&gt;
+&lt;p&gt;The research code is Python, but the deployment problem includes more than installing a package. A repeatable service needs a known entrypoint, a stable port, configuration through environment variables, persistent locations for cache and results, and a command that can run tests without entering the container manually.&lt;/p&gt;
+&lt;p&gt;Docker Compose provides those pieces with a small amount of configuration. More importantly, it leaves the model backend outside the image. The model can stay on the local machine, while the verifier service remains isolated and reproducible. This avoids baking a large model or a machine-specific serving stack into the example.&lt;/p&gt;
+&lt;p&gt;The current layout is intentionally plain:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;.&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;├── Dockerfile&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;├── docker-compose.yml&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;├── .env.example&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;└── scripts/&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ├── entrypoint.sh&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ├── server.py&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ├── smoke_test.py&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    └── verifier_smoke_test.py&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The cache and result directories are mounted at &lt;code&gt;/app/cache&lt;/code&gt; and &lt;code&gt;/app/results&lt;/code&gt; for commands that use them. They are operational state, not source code, so they remain outside the image lifecycle.&lt;/p&gt;
+&lt;h2 id=&quot;what-this-example-does-not-claim&quot;&gt;What this example does not claim&lt;/h2&gt;
+&lt;p&gt;This repository does not reproduce the upstream benchmarks, provide a new verifier algorithm, or include a model server. It packages the upstream library for a reproducible Docker-based service.&lt;/p&gt;
+&lt;p&gt;For the method and evaluation details, read the original project:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/llm-as-a-verifier/llm-as-a-verifier&quot;&gt;LLM-as-a-Verifier source repository&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://arxiv.org/abs/2607.05391&quot;&gt;LLM-as-a-Verifier paper&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://llm-as-a-verifier.com/docs/&quot;&gt;Upstream documentation&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The useful engineering lesson is narrower: when an AI research package has a clear backend contract, a small deployment wrapper can make a low-cost local experiment testable and repeatable without pretending to own the research implementation.&lt;/p&gt;
+&lt;h2 id=&quot;next-steps&quot;&gt;Next steps&lt;/h2&gt;
+&lt;p&gt;The next practical step is to connect the container to a local backend that exposes logprobs and run the two smoke tests before trying larger candidate pools. After that, the service can be integrated into an agent workflow that generates multiple trajectories and asks the verifier to compare or select among them.&lt;/p&gt;
+&lt;p&gt;That keeps the first deployment honest: verify the transport and model contract first, then measure selection behavior under the workload that matters.&lt;/p&gt;
+&lt;h2 id=&quot;citation&quot;&gt;Citation&lt;/h2&gt;
+&lt;p&gt;If you use the underlying research, please cite the upstream authors:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;bibtex&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;@misc&lt;/span&gt;&lt;span&gt;{&lt;/span&gt;&lt;span style=&quot;color: #8BE9FD;font-style: italic;&quot;&gt;kwok2026llmasaverifiergeneralpurposeverificationframework&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;  title&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;{&lt;/span&gt;&lt;span&gt;LLM-as-a-Verifier: A General-Purpose Verification Framework&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;}&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;  author&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;{&lt;/span&gt;&lt;span&gt;Jacky Kwok and Shulu Li and Pranav Atreya and Yuejiang Liu and Yixing Jiang and Chelsea Finn and Marco Pavone and Ion Stoica and Azalia Mirhoseini&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;}&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;  year&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;{&lt;/span&gt;&lt;span&gt;2026&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;}&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;  eprint&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;{&lt;/span&gt;&lt;span&gt;2607.05391&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;}&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;  archivePrefix&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;{&lt;/span&gt;&lt;span&gt;arXiv&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;}&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;  primaryClass&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;{&lt;/span&gt;&lt;span&gt;cs.AI&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;}&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8BE9FD;&quot;&gt;  url&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;{&lt;/span&gt;&lt;span&gt;https://arxiv.org/abs/2607.05391&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Our Pain with AI Coding Agents: Two Tools We Built to Stop Them from Breaking Things</title>
+        <published>2026-08-18T00:00:00+00:00</published>
+        <updated>2026-08-18T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/defensive-agent-architecture-graphify-statemachine/"/>
+        <id>https://cawa0505.github.io/defensive-agent-architecture-graphify-statemachine/</id>
+        
+        <summary type="html">&lt;iframe src=&quot;/defensive-agent-architecture-deck/&quot; width=&quot;100%&quot; height=&quot;500&quot; style=&quot;border:1px solid rgba(255,255,255,0.1); border-radius:12px; margin-bottom:32px;&quot; title=&quot;Defensive Agent Architecture slides&quot;&gt;&lt;/iframe&gt;
+&lt;p&gt;What&#39;s the biggest problem with using AI to write code? For us, it&#39;s not that the models aren&#39;t smart enough — it&#39;s that &lt;strong&gt;we can&#39;t trust them&lt;/strong&gt;.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;LLM tokens keep getting more expensive, but most of them go toward re-reading code structure the agent already saw.&lt;/li&gt;
+&lt;li&gt;The agent edits a file, the compiler screams, and it takes 3-4 rounds to get a clean compile.&lt;/li&gt;
+&lt;li&gt;Halfway through a task, context runs out. New session starts from scratch — everything is forgotten.&lt;/li&gt;
+&lt;li&gt;Sometimes broken code hits the filesystem before anyone notices.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;These are probably not unique to us. Our approach was to build two small tools — one for &lt;strong&gt;input cost&lt;/strong&gt;, one for &lt;strong&gt;operation safety&lt;/strong&gt; — connected to OpenCode via MCP. Each does exactly one thing.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Tapedeck: A Scriptable Recording Deck for Terminal Demos</title>
+        <published>2026-08-08T00:00:00+00:00</published>
+        <updated>2026-08-08T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/tapedeck-first-poc/"/>
+        <id>https://cawa0505.github.io/tapedeck-first-poc/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/tapedeck-first-poc/">&lt;p&gt;Most terminal demos are recorded the hard way: start a screen recorder, type the same commands again, and hope the timing survives the next take. &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck&lt;/a&gt; is a small Rust proof of concept aimed at making that process scriptable.&lt;/p&gt;
+&lt;p&gt;The input is a &lt;code&gt;.roll&lt;/code&gt; file. It describes the actions that should happen during a recording — typing, key presses, sleeps, output format, and frame rate — instead of encoding the demo as a one-off manual session.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/tapedeck-tui-demo.gif&quot; alt=&quot;Tapedeck TUI demo&quot; /&gt;&lt;/p&gt;
+&lt;h2 id=&quot;the-first-useful-split&quot;&gt;The first useful split&lt;/h2&gt;
+&lt;p&gt;Tapedeck currently has two recording paths:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/charmbracelet/vhs&quot;&gt;VHS&lt;/a&gt;&lt;/strong&gt; for terminal sessions, translating the script into a &lt;code&gt;vhs .tape&lt;/code&gt; run.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Native&lt;/strong&gt; for real desktop windows, with Wayland/X11 input and capture work planned around the native engine.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;code&gt;Set Engine Auto&lt;/code&gt; lets the project choose the path from the script&#39;s intent. The CLI also supports &lt;code&gt;--dry-run&lt;/code&gt;, so a recording can be checked for parsing and engine selection before it touches the screen.&lt;/p&gt;
+&lt;p&gt;The implementation is deliberately becoming boring in the right places: shared &lt;code&gt;.roll&lt;/code&gt; parsing, an engine trait, XDG-aware configuration, and explicit output flags such as &lt;code&gt;--fps&lt;/code&gt;, &lt;code&gt;--gif&lt;/code&gt;, and &lt;code&gt;--webp&lt;/code&gt;. The latest commits add &lt;code&gt;tapedeck doctor&lt;/code&gt;, which checks dependencies and probes available hardware encoders before saving the result to configuration.&lt;/p&gt;
+&lt;h2 id=&quot;why-this-is-a-poc&quot;&gt;Why this is a PoC&lt;/h2&gt;
+&lt;p&gt;The current milestone is not a polished capture suite. It is a test of the core loop:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;.roll script → parse → select engine → record → export media&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That loop is already enough to make a terminal demo repeatable. The next articles can go deeper into native window capture, hardware encoding, and asset management. For now, Tapedeck is the smallest interesting question: can a developer describe a demo once and regenerate it without manually replaying every keystroke?&lt;/p&gt;
+&lt;p&gt;→ &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck on GitHub&lt;/a&gt;&lt;/p&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>When a Markdown Editor Remembers LOGO</title>
+        <published>2026-08-08T00:00:00+00:00</published>
+        <updated>2026-08-08T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/zago-logo-in-a-markdown-editor/"/>
+        <id>https://cawa0505.github.io/zago-logo-in-a-markdown-editor/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/zago-logo-in-a-markdown-editor/">&lt;p&gt;There is a particular kind of software nostalgia that still earns its place: LOGO&#39;s turtle, reduced to movement, repetition, and a trail left behind.&lt;/p&gt;
+&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble/zago&quot;&gt;zago&lt;/a&gt; brings that idea into a terminal Markdown editor. It is written by &lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble&quot;&gt;zonble&lt;/a&gt;, and the interesting part is not a separate graphics window. The text buffer itself becomes the canvas.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/zago-logo-turtle.gif&quot; alt=&quot;A zago LOGO turtle drawing recorded with Tapedeck&quot; /&gt;&lt;/p&gt;
+&lt;h2 id=&quot;the-pen-is-a-text-buffer-mode&quot;&gt;The pen is a text-buffer mode&lt;/h2&gt;
+&lt;p&gt;zago&#39;s Editor LOGO uses the familiar &lt;code&gt;PD&lt;/code&gt; and &lt;code&gt;PU&lt;/code&gt; commands:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;PD&lt;/code&gt; — pen down; movement leaves line-drawing characters in the buffer.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;PU&lt;/code&gt; — pen up; movement becomes safe navigation again.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;FD&lt;/code&gt; — move forward in the current direction.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;RT&lt;/code&gt; and &lt;code&gt;LT&lt;/code&gt; — turn right or left by 90 degrees.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;When the pen is down, zago does more than print independent characters. It merges horizontal and vertical strokes into Unicode junctions such as &lt;code&gt;┌&lt;/code&gt;, &lt;code&gt;┐&lt;/code&gt;, &lt;code&gt;└&lt;/code&gt;, &lt;code&gt;┘&lt;/code&gt;, and &lt;code&gt;┼&lt;/code&gt;. That makes a sequence of cursor movements behave like a small diagram editor while the result remains plain text.&lt;/p&gt;
+&lt;p&gt;The default is deliberately safe: LOGO execution starts with the pen up. A macro has to opt into drawing explicitly, and a finished drawing should lift the pen again.&lt;/p&gt;
+&lt;h2 id=&quot;a-small-polygon-instead-of-box&quot;&gt;A small polygon instead of &lt;code&gt;BOX&lt;/code&gt;&lt;/h2&gt;
+&lt;p&gt;The official pen-mode guide already demonstrates a square with &lt;code&gt;BOX&lt;/code&gt;-like movement. For this recording I used a stepped octagon so the demo shows turtle movement without repeating that example:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;logo&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;PD FD 16 RT 90 FD 8 RT 90 FD 6 RT 90 FD 3&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;RT 90 FD 4 RT 90 FD 3 RT 90 FD 6 RT 90 FD 8 PU&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;zago&#39;s turns are 90-degree turns, so this is not a graphical regular octagon. It is an orthogonal text polygon: a sequence of straight moves and right-angle turns that closes back on itself. The shape is less important than the mechanism — the turtle moves, the buffer records the path, and junction characters are fused as the path changes direction.&lt;/p&gt;
+&lt;p&gt;The same command can be tested without opening the editor:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;zago&lt;/span&gt;&lt;span style=&quot;color: #BD93F9;&quot;&gt; -e&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt; &amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt;PD FD 16 RT 90 FD 8 RT 90 FD 6 RT 90 FD 3 RT 90 FD 4 RT 90 FD 3 RT 90 FD 6 RT 90 FD 8 PU&lt;/span&gt;&lt;span style=&quot;color: #E9F284;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That headless mode is useful for checking a drawing before putting it into an interactive recording. It also makes the output easy to inspect in a shell or pipeline.&lt;/p&gt;
+&lt;h2 id=&quot;recording-the-interaction-instead-of-recording-it-again&quot;&gt;Recording the interaction instead of recording it again&lt;/h2&gt;
+&lt;p&gt;I used &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck&lt;/a&gt; to turn the terminal session into a repeatable &lt;code&gt;.roll&lt;/code&gt; script. The script is named &lt;code&gt;examples/tui_zago_logo_turtle.roll&lt;/code&gt; in the Tapedeck repository and describes the boring parts explicitly:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Set Engine Auto&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Set Output &amp;quot;zago_logo_turtle.gif&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Set FPS 15&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;...&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Escape&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Type &amp;quot;PD FD 16 RT 90 FD 8 RT 90 FD 6 RT 90 FD 3 RT 90 FD 4 RT 90 FD 3 RT 90 FD 6 RT 90 FD 8 PU&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Enter&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;code&gt;tapedeck run --dry-run examples/tui_zago_logo_turtle.roll&lt;/code&gt; passes the parser and selects the VHS engine. Running the script produced a &lt;code&gt;1200×600&lt;/code&gt; GIF with 251 frames in the local recording environment. The output is a terminal capture, not a claim that zago opens a graphical turtle canvas.&lt;/p&gt;
+&lt;p&gt;That distinction matters. zago owns the editor and the LOGO language; Tapedeck only makes the interaction reproducible. If the recording needs a new shape later, the script is the source of the demo instead of a sequence of manually timed keystrokes.&lt;/p&gt;
+&lt;h2 id=&quot;a-small-downstream-contribution&quot;&gt;A small downstream contribution&lt;/h2&gt;
+&lt;p&gt;I also maintain &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/aur-zago&quot;&gt;aur-zago&lt;/a&gt;, an Arch Linux packaging project for zago. The intended AUR package name is &lt;code&gt;zago-bin&lt;/code&gt;; it is not published in the AUR yet because new account registration is currently unavailable to me. This is downstream work, not zago development. I packaged it because I am a fan of zonble&#39;s project and wanted a convenient Arch installation path; the zago design, implementation, and authorship remain zonble&#39;s.&lt;/p&gt;
+&lt;p&gt;That boundary is worth stating plainly when writing about tools one did not create. Packaging, recording, and documenting a project can be useful without turning into an ownership claim.&lt;/p&gt;
+&lt;h2 id=&quot;sources&quot;&gt;Sources&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble/zago/blob/main/README.md&quot;&gt;zago README&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble/zago/blob/main/docs/logo.md&quot;&gt;Editor LOGO documentation&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/zonble/zago/blob/main/docs/logo_pen_mode.md&quot;&gt;Pen mode and turtle drawing&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/tapedeck&quot;&gt;Tapedeck&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/aur-zago&quot;&gt;aur-zago&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Dogfooding: Graphify Extracts Its Own Codebase</title>
+        <published>2026-08-06T00:03:00+00:00</published>
+        <updated>2026-08-06T00:03:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/dogfooding-graphify-extracts-its-own-codebase/"/>
+        <id>https://cawa0505.github.io/dogfooding-graphify-extracts-its-own-codebase/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/dogfooding-graphify-extracts-its-own-codebase/">&lt;p&gt;The best test of a codebase-graph tool is its own codebase. &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify&lt;/a&gt; doesn&#39;t just ship graphs for other repos — we run it on itself in CI and in this article. Measured just now, on the project&#39;s own source:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;$ graphify extract .&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Successfully extracted graph to graphify-out/graph.toon (nodes: 225, edges: 750)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Elapsed (wall clock): 0.25 s   (second run: 0.12 s)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Maximum resident set size: ~17 MB&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;225 nodes, 750 edges, one quarter of a second, less RAM than a browser tab. That&#39;s the whole promise of the Rust rewrite (&lt;a href=&quot;/26x-faster-rewriting-the-codebase-grapher-in-rust/&quot;&gt;part 2&lt;/a&gt;) in one command line.&lt;/p&gt;
+&lt;h2 id=&quot;what-the-graph-looks-like&quot;&gt;What the graph looks like&lt;/h2&gt;
+&lt;p&gt;The workspace is split into focused crates, and the graph shows it:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;graphify-core&lt;/strong&gt; — AST parsing and the graph data model&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-llm&lt;/strong&gt; — the semantic pass and rate-limit handling (&lt;code&gt;AutoRotatePipeline&lt;/code&gt; lives at &lt;code&gt;graphify-llm/src/pipeline.rs:9&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-cli&lt;/strong&gt; — &lt;code&gt;extract&lt;/code&gt;, &lt;code&gt;query&lt;/code&gt;, &lt;code&gt;path&lt;/code&gt;, &lt;code&gt;index&lt;/code&gt;, &lt;code&gt;tui&lt;/code&gt;, &lt;code&gt;install-skill&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-mcp&lt;/strong&gt; — the &lt;a rel=&quot;external&quot; href=&quot;https://modelcontextprotocol.io&quot;&gt;Model Context Protocol&lt;/a&gt; server so assistants query the graph directly&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;graphify-out&lt;/strong&gt; — the &lt;code&gt;.toon&lt;/code&gt; format crate&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;querying-it&quot;&gt;Querying it&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;query&lt;/code&gt; and &lt;code&gt;path&lt;/code&gt; work on the extracted graph, so an assistant (or a human) can ask structural questions without reading the whole repo:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;$ graphify query &amp;quot;./graphify-llm/src/pipeline.rs:struct:AutoRotatePipeline&amp;quot; --depth 1&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;...returns the node with its neighbors — who calls what, where the struct starts (&lt;code&gt;pipeline.rs:9&lt;/code&gt;), what module it belongs to. &lt;code&gt;graphify path A B&lt;/code&gt; answers &quot;how do these two subsystems connect?&quot;&lt;/p&gt;
+&lt;h2 id=&quot;why-dogfooding-matters&quot;&gt;Why dogfooding matters&lt;/h2&gt;
+&lt;p&gt;Three things running graphify on itself catches, that manual docs would miss:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Extraction must be fast enough to feel instant&lt;/strong&gt; — the TUI re-extracts live as you navigate.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;The MCP server must actually answer&lt;/strong&gt; — we use it while developing, so a broken query path is a broken day.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;The graph must match reality&lt;/strong&gt; — the crate split above is verified by the graph, not by prose.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Graphify is open source. If you build AI agents that work across codebases, this is what they see when they look at a repo.&lt;/p&gt;
+&lt;p&gt;→ &lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/graphify-rust&quot;&gt;graphify on GitHub&lt;/a&gt;&lt;/p&gt;
+</content>
+        
+    </entry>
+</feed>

@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jimmy Yen - MCP</title>
+    <subtitle>Building sicker tools than yesterday. Technical articles, open-source high-performance tools.</subtitle>
+    <link rel="self" type="application/atom+xml" href="https://cawa0505.github.io/tags/mcp/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://cawa0505.github.io"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-08-18T00:00:00+00:00</updated>
+    <id>https://cawa0505.github.io/tags/mcp/atom.xml</id>
+    <entry xml:lang="en">
+        <title>Our Pain with AI Coding Agents: Two Tools We Built to Stop Them from Breaking Things</title>
+        <published>2026-08-18T00:00:00+00:00</published>
+        <updated>2026-08-18T00:00:00+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/defensive-agent-architecture-graphify-statemachine/"/>
+        <id>https://cawa0505.github.io/defensive-agent-architecture-graphify-statemachine/</id>
+        
+        <summary type="html">&lt;iframe src=&quot;/defensive-agent-architecture-deck/&quot; width=&quot;100%&quot; height=&quot;500&quot; style=&quot;border:1px solid rgba(255,255,255,0.1); border-radius:12px; margin-bottom:32px;&quot; title=&quot;Defensive Agent Architecture slides&quot;&gt;&lt;/iframe&gt;
+&lt;p&gt;What&#39;s the biggest problem with using AI to write code? For us, it&#39;s not that the models aren&#39;t smart enough — it&#39;s that &lt;strong&gt;we can&#39;t trust them&lt;/strong&gt;.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;LLM tokens keep getting more expensive, but most of them go toward re-reading code structure the agent already saw.&lt;/li&gt;
+&lt;li&gt;The agent edits a file, the compiler screams, and it takes 3-4 rounds to get a clean compile.&lt;/li&gt;
+&lt;li&gt;Halfway through a task, context runs out. New session starts from scratch — everything is forgotten.&lt;/li&gt;
+&lt;li&gt;Sometimes broken code hits the filesystem before anyone notices.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;These are probably not unique to us. Our approach was to build two small tools — one for &lt;strong&gt;input cost&lt;/strong&gt;, one for &lt;strong&gt;operation safety&lt;/strong&gt; — connected to OpenCode via MCP. Each does exactly one thing.&lt;/p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Making OpenSlide Usable by Code Agents with Four MCP Tools</title>
+        <published>2026-08-16T20:23:05+00:00</published>
+        <updated>2026-08-16T20:23:05+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/making-open-slide-usable-by-code-agents-with-four-mcp-tools/"/>
+        <id>https://cawa0505.github.io/making-open-slide-usable-by-code-agents-with-four-mcp-tools/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/making-open-slide-usable-by-code-agents-with-four-mcp-tools/">&lt;p&gt;OpenSlide already had the hard part: a slide engine, a React authoring model, a CLI, and static builds. What it lacked was a clean boundary for code agents.&lt;/p&gt;
+&lt;p&gt;A human can answer an overwrite prompt, watch terminal output, and decide what command to run next. An agent works better with named arguments, validation, and one structured response per operation. The new OpenSlide MCP server adds that boundary without creating a second slide engine.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/open-slide-mcp-demo.gif&quot; alt=&quot;OpenSlide MCP stdio demo&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;The recording above shows the real end-to-end flow: the five-page brief, the agent-authored slide source, and &lt;code&gt;open_slide_build&lt;/code&gt; resolving the output directory — all through a real MCP client over stdio.&lt;/p&gt;
+&lt;h2 id=&quot;the-boundary-was-the-missing-piece&quot;&gt;The boundary was the missing piece&lt;/h2&gt;
+&lt;p&gt;The implementation is intentionally thin:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;code agent&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    │ MCP over stdio&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;@open-slide/mcp&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    │ validated function calls&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;@open-slide/cli + @open-slide/core/cli&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The MCP package uses the official TypeScript MCP SDK and Zod. Each handler validates its input, delegates to existing OpenSlide code, and returns JSON as MCP text content. Build logic, workspace scaffolding, skill synchronization, and HTML generation remain owned by the existing CLI packages.&lt;/p&gt;
+&lt;p&gt;That matters because duplicating those operations inside an MCP-specific implementation would create two behaviors to maintain. A thin adapter keeps the protocol boundary new while leaving the slide engine alone.&lt;/p&gt;
+&lt;h2 id=&quot;four-finite-tools&quot;&gt;Four finite tools&lt;/h2&gt;
+&lt;p&gt;The server exposes four operations:&lt;/p&gt;
+&lt;h3 id=&quot;open-slide-init&quot;&gt;&lt;code&gt;open_slide_init&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;Creates a workspace. Its arguments cover the decisions that would otherwise require interactive terminal input:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;dir, force, name, install, git, packageManager&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The result reports the resolved workspace directory.&lt;/p&gt;
+&lt;h3 id=&quot;open-slide-build&quot;&gt;&lt;code&gt;open_slide_build&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;Builds an existing workspace into a static SPA. It accepts the workspace directory and an optional output directory, then reports the resolved output path.&lt;/p&gt;
+&lt;h3 id=&quot;open-slide-export-html&quot;&gt;&lt;code&gt;open_slide_export_html&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;Builds the workspace and attempts to produce one HTML file. It accepts the workspace directory and an optional output filename.&lt;/p&gt;
+&lt;h3 id=&quot;open-slide-sync-skills&quot;&gt;&lt;code&gt;open_slide_sync_skills&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;Synchronizes OpenSlide&#39;s bundled agent skills into the workspace. With &lt;code&gt;dryRun: true&lt;/code&gt;, it reports drift without writing files. The implementation also preserves the existing symlink-first behavior and copy fallback.&lt;/p&gt;
+&lt;p&gt;These are deliberately finite operations. Long-running &lt;code&gt;dev&lt;/code&gt; and &lt;code&gt;preview&lt;/code&gt; sessions are not MCP tools. They do not fit the same request-response lifecycle and remain normal CLI commands.&lt;/p&gt;
+&lt;h2 id=&quot;dogfooding-the-workflow&quot;&gt;Dogfooding the workflow&lt;/h2&gt;
+&lt;p&gt;The deck below was made through the same path described here:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;open_slide_init&lt;/code&gt; created an isolated workspace.&lt;/li&gt;
+&lt;li&gt;The agent replaced the generated sample with a five-page React deck about the MCP server.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;open_slide_build&lt;/code&gt; compiled the workspace.&lt;/li&gt;
+&lt;li&gt;The resulting static SPA was copied into this Zola site&#39;s &lt;code&gt;static/&lt;/code&gt; tree.&lt;/li&gt;
+&lt;li&gt;This article embeds that real output rather than a screenshot of it.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;div style=&quot;position:relative;width:100%;aspect-ratio:16/9;margin:2rem 0;overflow:hidden;border:1px solid #444;border-radius:8px;background:#0b0d10&quot;&gt;
+  &lt;iframe src=&quot;/open-slide-mcp-demo/&quot; title=&quot;OpenSlide MCP for code agents&quot; loading=&quot;lazy&quot; allowfullscreen style=&quot;position:absolute;inset:0;width:100%;height:100%;border:0&quot;&gt;&lt;/iframe&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;a href=&quot;/open-slide-mcp-demo/&quot;&gt;Open the interactive deck in a separate tab&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Use the left and right arrow keys inside the deck to move between its five pages.&lt;/p&gt;
+&lt;h2 id=&quot;what-the-demo-found&quot;&gt;What the demo found&lt;/h2&gt;
+&lt;p&gt;Dogfooding exposed a real limitation in &lt;code&gt;open_slide_export_html&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;The exporter sets Vite&#39;s asset inline limit high enough to inline normal emitted assets, then replaces the entry JavaScript and CSS references in &lt;code&gt;index.html&lt;/code&gt;. Slide decks, however, are loaded as dynamic JavaScript chunks. The exported HTML did not contain the chunk for this deck, so calling the file self-contained would be inaccurate.&lt;/p&gt;
+&lt;p&gt;The embedded artifact therefore uses &lt;code&gt;open_slide_build&lt;/code&gt;, with a dedicated base path, instead of pretending the single-file export worked. The build output contains the entry bundle, CSS, fonts, and the deck&#39;s dynamic chunk under one static directory.&lt;/p&gt;
+&lt;p&gt;This is exactly why a real end-to-end artifact is more useful than a tool-registration test. The MCP calls worked, the build worked, and the final embed still revealed a packaging bug at the delivery boundary.&lt;/p&gt;
+&lt;h2 id=&quot;what-mcp-improves-and-what-it-does-not&quot;&gt;What MCP improves—and what it does not&lt;/h2&gt;
+&lt;p&gt;MCP removes terminal ambiguity for agents:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;no TTY prompt parsing for workspace creation;&lt;/li&gt;
+&lt;li&gt;explicit, validated arguments;&lt;/li&gt;
+&lt;li&gt;stable structured responses;&lt;/li&gt;
+&lt;li&gt;direct access to existing build and synchronization operations;&lt;/li&gt;
+&lt;li&gt;no duplicated slide engine.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;It does not remove OpenSlide&#39;s runtime requirements. The server still needs Node.js 18 or newer and the OpenSlide packages. A static build still needs to be hosted somewhere. Large assets still increase output size. Interactive development remains a CLI workflow.&lt;/p&gt;
+&lt;p&gt;The result is small on purpose: four tools, one stdio transport, and delegation to code that already existed. That is enough for an agent to create a workspace, author a deck, build it, and hand a deployable artifact to the next step.&lt;/p&gt;
+&lt;h2 id=&quot;sources&quot;&gt;Sources&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/open-slide&quot;&gt;OpenSlide repository&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/open-slide/commit/7c1be9b4db4b51f17c7fbfb4db272461a0676d68&quot;&gt;MCP tools implementation&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/cawa0505/open-slide/commit/de7a5aa8752bc59d8b1b57049e619a638613182c&quot;&gt;Symlink entry-point fix&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Why open-design-mcp Exists: Fixing Auth Between MCP and the Open Design Daemon</title>
+        <published>2026-08-16T19:43:44+00:00</published>
+        <updated>2026-08-16T19:43:44+00:00</updated>
+        
+        <author><name>Unknown</name></author>
+        
+        <link rel="alternate" type="text/html" href="https://cawa0505.github.io/why-open-design-mcp-exists/"/>
+        <id>https://cawa0505.github.io/why-open-design-mcp-exists/</id>
+        
+        <content type="html" xml:base="https://cawa0505.github.io/why-open-design-mcp-exists/">&lt;p&gt;The Open Design daemon already had a Web UI, a REST API, and an stdio MCP client. On paper, that should have been enough for an agent to control it.&lt;/p&gt;
+&lt;p&gt;It was not.&lt;/p&gt;
+&lt;p&gt;When the daemon enforced &lt;code&gt;OD_API_TOKEN&lt;/code&gt;, the stdio client called the REST API without an &lt;code&gt;Authorization&lt;/code&gt; header. The MCP connection itself started normally, but every tool call that crossed into the daemon failed with HTTP 401.&lt;/p&gt;
+&lt;p&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/iscixin/open-design-mcp&quot;&gt;open-design-mcp&lt;/a&gt; exists to fix that narrow integration gap. It is not another design editor, a replacement daemon, or a new MCP implementation. It is a small distribution layer around the upstream Open Design client: one authentication patch, one token-loading wrapper, and scripts that build and install the patched binary from source.&lt;/p&gt;
+&lt;h2 id=&quot;the-missing-protocol-boundary&quot;&gt;The missing protocol boundary&lt;/h2&gt;
+&lt;p&gt;The actual path has three parts:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;MCP client&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    │ stdio / JSON-RPC&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;od-mcp wrapper&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    │ HTTP / REST + Bearer token&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ▼&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Open Design daemon&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The stdio side was already present upstream. Authentication was missing on the HTTP side.&lt;/p&gt;
+&lt;p&gt;The patch adds a helper that reads &lt;code&gt;OD_API_TOKEN&lt;/code&gt; and returns the header expected by the daemon:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;typescript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;function&lt;/span&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt; daemonHeaders&lt;/span&gt;&lt;span&gt;()&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #8BE9FD;font-style: italic;&quot;&gt; Record&lt;/span&gt;&lt;span&gt;&amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #8BE9FD;font-style: italic;&quot;&gt;string&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;span style=&quot;color: #8BE9FD;font-style: italic;&quot;&gt; string&lt;/span&gt;&lt;span&gt;&amp;gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;  const&lt;/span&gt;&lt;span&gt; token&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt; =&lt;/span&gt;&lt;span&gt; process.env.&lt;/span&gt;&lt;span style=&quot;color: #BD93F9;&quot;&gt;OD_API_TOKEN&lt;/span&gt;&lt;span&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;  return&lt;/span&gt;&lt;span&gt; token&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt; ?&lt;/span&gt;&lt;span&gt; { Authorization&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; `Bearer &lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;${&lt;/span&gt;&lt;span&gt;token&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt;}&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt;`&lt;/span&gt;&lt;span&gt; }&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt; :&lt;/span&gt;&lt;span&gt; {};&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Every fetch from the stdio client to the daemon uses that header. The change is intentionally small because the daemon, tools, and transport were not the problem. Replacing any of them would have created a larger fork to maintain.&lt;/p&gt;
+&lt;h2 id=&quot;why-the-token-is-not-stored-in-mcp-config&quot;&gt;Why the token is not stored in MCP config&lt;/h2&gt;
+&lt;p&gt;Putting the raw token directly in &lt;code&gt;opencode.json&lt;/code&gt; would make the first request work, but it creates a second problem: secrets become duplicated across client configuration files. Rotation then requires editing every client that launches the MCP server.&lt;/p&gt;
+&lt;p&gt;The &lt;code&gt;od-mcp&lt;/code&gt; wrapper reads the token from a separate file when the process starts. The default is:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;~/.config/opencode/.od_token&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The file is created with owner-only permissions:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #F8F8F2; background-color: #282A36;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;openssl&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; rand&lt;/span&gt;&lt;span style=&quot;color: #BD93F9;&quot;&gt; -hex 32&lt;/span&gt;&lt;span style=&quot;color: #FF79C6;&quot;&gt; &amp;gt;&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; ~/.config/opencode/.od_token&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #50FA7B;&quot;&gt;chmod&lt;/span&gt;&lt;span style=&quot;color: #BD93F9;&quot;&gt; 600&lt;/span&gt;&lt;span style=&quot;color: #F1FA8C;&quot;&gt; ~/.config/opencode/.od_token&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The MCP configuration only needs the daemon URL and the wrapper command. The token remains outside the project repository and outside the client config. To rotate it, replace the file and restart the MCP process.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;OD_API_TOKEN&lt;/code&gt; can still override the file when an environment-based secret source is appropriate. &lt;code&gt;OD_TOKEN_FILE&lt;/code&gt; can point the wrapper at a different file.&lt;/p&gt;
+&lt;h2 id=&quot;why-this-repository-builds-from-source&quot;&gt;Why this repository builds from source&lt;/h2&gt;
+&lt;p&gt;The upstream daemon package is not published as an installable npm package. A normal &lt;code&gt;npm install&lt;/code&gt; path therefore cannot provide the patched &lt;code&gt;od&lt;/code&gt; command.&lt;/p&gt;
+&lt;p&gt;The repository keeps the workaround explicit:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Clone or update the upstream Open Design source.&lt;/li&gt;
+&lt;li&gt;Check whether the authentication patch is already present.&lt;/li&gt;
+&lt;li&gt;Fail if the patch no longer applies cleanly.&lt;/li&gt;
+&lt;li&gt;Install dependencies with the frozen lockfile.&lt;/li&gt;
+&lt;li&gt;Build the daemon package.&lt;/li&gt;
+&lt;li&gt;Link the resulting command locally.&lt;/li&gt;
+&lt;li&gt;Install the &lt;code&gt;od-mcp&lt;/code&gt; wrapper into the user&#39;s path.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;That fail-closed patch check matters. If upstream changes &lt;code&gt;mcp.ts&lt;/code&gt;, silently skipping a stale patch would produce a binary that builds successfully but still sends unauthenticated requests. Commit &lt;a rel=&quot;external&quot; href=&quot;https://github.com/iscixin/open-design-mcp/commit/8d64e9816a46ef74a0b9a8f69ebedb10a5585aca&quot;&gt;&lt;code&gt;8d64e98&lt;/code&gt;&lt;/a&gt; changed the build script to distinguish &quot;already applied&quot; from &quot;does not apply&quot; and stop on the latter.&lt;/p&gt;
+&lt;p&gt;The same commit also documents an easy Linux naming collision: &lt;code&gt;/usr/bin/od&lt;/code&gt; is normally GNU coreutils&#39; octal dump command. If that binary wins &lt;code&gt;PATH&lt;/code&gt;, &lt;code&gt;od mcp&lt;/code&gt; fails with &lt;code&gt;Unknown command: mcp&lt;/code&gt;. The installed Open Design command must resolve from the Node binary directory instead.&lt;/p&gt;
+&lt;h2 id=&quot;what-this-solves&quot;&gt;What this solves&lt;/h2&gt;
+&lt;p&gt;The repository solves three concrete operational problems:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The stdio MCP client now authenticates every request sent to the daemon.&lt;/li&gt;
+&lt;li&gt;The token no longer needs to live in an MCP client configuration file.&lt;/li&gt;
+&lt;li&gt;The patched client can be built and linked even though the upstream package is not published to npm.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The result keeps the existing Open Design architecture intact. Agents still speak MCP over stdio. The Open Design client still talks to the daemon over REST. The daemon still owns project state and design operations.&lt;/p&gt;
+&lt;h2 id=&quot;what-it-does-not-solve&quot;&gt;What it does not solve&lt;/h2&gt;
+&lt;p&gt;This is deliberately not a general reliability layer.&lt;/p&gt;
+&lt;p&gt;The daemon remains a network dependency. If it is unavailable, the wrapper cannot make design operations succeed. Cross-host latency and firewall rules still apply. Containers still need access to the token file or an injected environment variable. A future upstream change can still require the patch to be rebased.&lt;/p&gt;
+&lt;p&gt;The wrapper also does not add or redefine tools. Claims about the daemon&#39;s complete tool or resource surface belong to the upstream Open Design project, not this patch repository.&lt;/p&gt;
+&lt;p&gt;That narrow boundary is the point. The smallest maintainable fix was not to fork Open Design. It was to add the missing bearer header, isolate the secret, and make the source-build path fail loudly when upstream changes.&lt;/p&gt;
+&lt;h2 id=&quot;source&quot;&gt;Source&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/iscixin/open-design-mcp&quot;&gt;open-design-mcp&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/nexu-io/open-design&quot;&gt;Open Design upstream&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/iscixin/open-design-mcp/blob/main/patch/mcp-auth.patch&quot;&gt;Authentication patch&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;external&quot; href=&quot;https://github.com/iscixin/open-design-mcp/commit/8d64e9816a46ef74a0b9a8f69ebedb10a5585aca&quot;&gt;Fail-closed build fix&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+        
+    </entry>
+</feed>
