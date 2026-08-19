@@ -3,3 +3,7 @@ public/
 scripts/local.json
 _site
 AGENTS.md
+# Code Relay (local state)
+relay.json
+RESUME.md
+next_step.md
