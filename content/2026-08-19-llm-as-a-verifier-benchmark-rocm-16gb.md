@@ -1,7 +1,7 @@
 +++
 title = "Local LLM-as-a-Verifier on a 16GB ROCm GPU: Real Benchmark Data"
 date = 2026-08-19T06:47:43Z
-draft = true
+
 
 [taxonomies]
 tags = ["llm", "benchmark", "rocm", "amd", "verifier", "guardrail", "performance"]
